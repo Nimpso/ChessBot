@@ -1,10 +1,13 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-extern char board[8][8];
+typedef struct
+{
+    char board[8][8];
+    int sideToMove;
+} Position;
 
-void InitBoard(void);
-
-void PrintBoard(void);
+void InitBoard(Position *position);
+void PrintBoard(Position *position);
 
 #endif
