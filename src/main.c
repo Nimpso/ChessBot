@@ -11,4 +11,4 @@ int main(void)
     PrintBoard(&myposition);
 
     return 0;
-}
+}  
