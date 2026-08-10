@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "board.h"
 #include "move.h"
-#include "board.h"
 
 int main(void)
 {
@@ -12,6 +11,8 @@ int main(void)
     InitBoard(&myposition);
     PrintBoard(&myposition);
 
+    printf("Side : %s\n",myposition.sideToMove == 0 ? "White" : "Black");
+
     Move move_test;
 
     move_test.fromRow = 6;
@@ -21,6 +22,18 @@ int main(void)
 
     MakeMove(&myposition, move_test);
     PrintBoard(&myposition);
+
+    printf("Side : %s\n",myposition.sideToMove == 0 ? "White" : "Black");
+
+    move_test.fromRow = 1;
+    move_test.fromCol = 4;
+    move_test.toRow = 3;
+    move_test.toCol = 4;
+
+    MakeMove(&myposition, move_test);
+    PrintBoard(&myposition);
+
+    printf("Side : %s\n",myposition.sideToMove == 0 ? "White" : "Black");
 
 
     return 0;
