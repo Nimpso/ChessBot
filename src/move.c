@@ -621,3 +621,15 @@ void CopyPosition(Position *source, Position *destination)
 {
     *destination = *source;
 }
+
+void GeneratePseudoLegalMoves(Position *position, MoveList *moveList)
+{
+    moveList->count = 0;
+
+    GeneratePawnMoves(position, moveList);
+    GenerateKnightMoves(position, moveList);
+    GenerateBishopMoves(position, moveList);
+    GenerateRookMoves(position, moveList);
+    GenerateQueenMoves(position, moveList);
+    GenerateKingMoves(position, moveList);
+}

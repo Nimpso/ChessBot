@@ -26,7 +26,9 @@ void GenerateQueenMoves(Position *position, MoveList *moveList);
 void GenerateKingMoves(Position *position, MoveList *moveList);
 int IsSquareAttacked(Position *position, int row, int col, int bySide);
 int IsInCheck(Position *position, int side);
-void GenerateLegalMoves(Position *position, MoveList *legalMoves);
 void AddMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol);
+void GenerateLegalMoves(Position *position, MoveList *legalMoves);
+void GeneratePseudoLegalMoves(Position *position, MoveList *moveList);
+
 
 #endif

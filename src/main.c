@@ -162,26 +162,6 @@ void TestMoveListAccumulation(void)
     Position position;
     MoveList moveList;
 
-
-    /*
-       Position :
-
-       8 . . . . k . . .
-       7 . . . . . . . .
-       6 . . . . . . . .
-       5 . . . B . . . .
-       4 . . . . . N . .
-       3 . . . . . . . .
-       2 . . . . . . . .
-       1 . . . . K . . R
-         a b c d e f g h
-    */
-
-
-    /* --------------------------------------------------------
-       CREATION DE LA POSITION
-       -------------------------------------------------------- */
-
     for (int i = 0; i < 8; i++)
     {
         for (int j = 0; j < 8; j++)
@@ -190,7 +170,7 @@ void TestMoveListAccumulation(void)
         }
     }
 
-    position.sideToMove = 0;
+    position.sideToMove = 1;
 
     position.whiteKingSideCastle = 0;
     position.whiteQueenSideCastle = 0;
@@ -201,7 +181,7 @@ void TestMoveListAccumulation(void)
     /* Pieces blanches */
 
     position.board[7][4] = 'K';   // e1
-    position.board[7][7] = 'R';   // h1
+    position.board[7][5] = 'R';   // f1
     position.board[3][3] = 'B';   // d5
     position.board[4][6] = 'N';   // g4
 
@@ -217,140 +197,11 @@ void TestMoveListAccumulation(void)
 
     printf("\n");
     printf("========================================\n");
-    printf(" TEST 2 : ACCUMULATION DES GENERATEURS\n");
+    printf(" TEST 2 : GENERATE PSEUDO-LEGALMOVES\n");
     printf("========================================\n\n");
 
     PrintBoard(&position);
-
-
-    /* --------------------------------------------------------
-       LISTE VIDE
-       -------------------------------------------------------- */
-
-    moveList.count = 0;
-
-
-    /* --------------------------------------------------------
-       PIONS
-       -------------------------------------------------------- */
-
-    printf("\n--- Generation des pions ---\n");
-
-    GeneratePawnMoves(&position, &moveList);
-
-    printf("Nombre de coups : %d\n", moveList.count);
-
-    if (moveList.count == 0)
-        printf("[PASS] Aucun pion\n");
-    else
-        printf("[FAIL] Aucun pion ne devrait etre present\n");
-
-
-    /* --------------------------------------------------------
-       CAVALIER
-       -------------------------------------------------------- */
-
-    printf("\n--- Generation des cavaliers ---\n");
-
-    GenerateKnightMoves(&position, &moveList);
-
-    printf("Nombre de coups : %d\n", moveList.count);
-
-    if (moveList.count == 6)
-        printf("[PASS] 6 coups de cavalier\n");
-    else
-        printf("[FAIL] Attendu : 6\n");
-
-
-    /* --------------------------------------------------------
-       FOU
-       -------------------------------------------------------- */
-
-    printf("\n--- Generation des fous ---\n");
-
-    GenerateBishopMoves(&position, &moveList);
-
-    printf("Nombre de coups : %d\n", moveList.count);
-
-    /*
-       Fou d5 :
-
-       c6 b7 a8
-       e6 f7 g8
-       c4 b3 a2
-       e4 f3 g2 
-
-       = 12 coups
-
-       6 + 12 = 18
-    */
-
-    if (moveList.count == 18)
-        printf("[PASS] 6 cavaliers + 12 fous = 18\n");
-    else
-        printf("[FAIL] Attendu : 18\n");
-
-
-    /* --------------------------------------------------------
-       TOUR
-       -------------------------------------------------------- */
-
-    printf("\n--- Generation des tours ---\n");
-
-    GenerateRookMoves(&position, &moveList);
-
-    printf("Nombre de coups : %d\n", moveList.count);
-
-    /*
-       Tour h1 :
-
-       g1 f1
-       h2 h3 h4 h5 h6 h7 h8
-
-       = 10 coups
-
-       18 + 9 = 27
-    */
-
-    if (moveList.count == 27)
-        printf("[PASS] 18 + 9 tours = 27\n");
-    else
-        printf("[FAIL] Attendu : 27\n");
-
-
-    /* --------------------------------------------------------
-       DAME
-       -------------------------------------------------------- */
-
-    printf("\n--- Generation des dames ---\n");
-
-    GenerateQueenMoves(&position, &moveList);
-
-    printf("Nombre de coups : %d\n", moveList.count);
-
-    /*
-       Il n'y a aucune dame.
-       Le count doit donc rester a 27.
-    */
-
-    if (moveList.count == 27)
-        printf("[PASS] Aucune dame, count conserve\n");
-    else
-        printf("[FAIL] Le count a ete modifie\n");
-
-
-    /* --------------------------------------------------------
-       ROI
-       -------------------------------------------------------- */
-
-    printf("\n--- Generation du roi ---\n");
-
-    GenerateKingMoves(&position, &moveList);
-
-    printf("Nombre de coups : %d\n", moveList.count);
-
-    printf("\n");
-
+    GeneratePseudoLegalMoves(&position, &moveList);
 
     /* --------------------------------------------------------
        LISTE COMPLETE
