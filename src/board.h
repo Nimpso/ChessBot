@@ -5,6 +5,11 @@ typedef struct
 {
     char board[8][8];
     int sideToMove;
+
+    int whiteKingSideCastle;
+    int whiteQueenSideCastle;
+    int blackKingSideCastle;
+    int blackQueenSideCastle;
 } Position;
 
 void InitBoard(Position *position);

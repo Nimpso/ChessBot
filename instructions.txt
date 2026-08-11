@@ -1,0 +1,1454 @@
+# ChessBot — Feuille de route complète du projet
+
+## 0. Objectif du projet
+
+Créer en **C** un moteur d'échecs classique fonctionnant entièrement sur CPU, puis l'intégrer à **Lichess** sous forme de bot.
+
+Le moteur ne reposera pas sur du machine learning ou un GPU.
+
+Objectifs principaux :
+
+1. Comprendre le fonctionnement interne d'un moteur d'échecs.
+2. Construire progressivement un moteur fonctionnel.
+3. Utiliser une évaluation écrite manuellement.
+4. Implémenter un algorithme de recherche classique.
+5. Optimiser progressivement les performances.
+6. Tester chaque composant indépendamment.
+7. Implémenter une interface UCI.
+8. Connecter le moteur à Lichess.
+9. Mesurer son niveau réel et améliorer progressivement son Elo.
+
+Le projet doit rester :
+
+* gratuit ;
+* compilable sur différentes machines ;
+* principalement portable en C ;
+* utilisable depuis VS Code ;
+* stocké dans un dépôt GitHub ;
+* suffisamment documenté pour pouvoir être repris par une autre IA ou un autre développeur.
+
+---
+
+# 1. État actuel du projet
+
+## 1.1 Environnement
+
+Langage :
+
+```text
+C
+```
+
+IDE :
+
+```text
+Visual Studio Code
+```
+
+Compilation actuelle :
+
+```text
+GCC / MinGW / MSYS2
+```
+
+Système de développement principal :
+
+```text
+Windows
+```
+
+Le projet est stocké sur une clé USB et synchronisé avec GitHub.
+
+Le code doit éviter autant que possible les dépendances spécifiques à une machine.
+
+---
+
+# 2. Architecture actuelle
+
+Structure actuelle approximative :
+
+```text
+Chessbot/
+│
+├── src/
+│   ├── main.c
+│   ├── board.c
+│   ├── board.h
+│   ├── move.c
+│   └── move.h
+│
+├── .gitignore
+│
+└── README.md
+```
+
+Cette architecture pourra évoluer.
+
+---
+
+# 3. Représentation actuelle du plateau
+
+Actuellement le plateau utilise :
+
+```c
+char board[8][8];
+```
+
+Convention :
+
+```text
+Blancs = majuscules
+Noirs  = minuscules
+Vide   = '.'
+```
+
+Pièces :
+
+```text
+P = pion blanc
+N = cavalier blanc
+B = fou blanc
+R = tour blanche
+Q = dame blanche
+K = roi blanc
+
+p = pion noir
+n = cavalier noir
+b = fou noir
+r = tour noire
+q = dame noire
+k = roi noir
+```
+
+Convention des coordonnées :
+
+```text
+board[0][0] = a8
+board[0][7] = h8
+
+board[7][0] = a1
+board[7][7] = h1
+```
+
+Donc :
+
+```text
+ligne affichée = 8 - row
+colonne affichée = 'a' + col
+```
+
+---
+
+# 4. Structure Position actuelle
+
+Actuellement :
+
+```c
+typedef struct
+{
+    char board[8][8];
+    int sideToMove;
+} Position;
+```
+
+Convention :
+
+```text
+sideToMove == 0 → Blancs
+sideToMove == 1 → Noirs
+```
+
+Cette structure devra être enrichie avant la recherche.
+
+Elle devra progressivement contenir :
+
+```text
+board
+sideToMove
+castling rights
+en passant square
+halfmove clock
+```
+
+et éventuellement d'autres informations nécessaires.
+
+---
+
+# 5. Structure Move actuelle
+
+Actuellement :
+
+```c
+typedef struct
+{
+    int fromRow;
+    int fromCol;
+    int toRow;
+    int toCol;
+} Move;
+```
+
+Elle devra éventuellement être enrichie pour contenir :
+
+```text
+piece moved
+piece captured
+promotion
+flags
+```
+
+Exemple :
+
+```text
+normal move
+capture
+promotion
+castling
+en passant
+```
+
+Mais ne pas ajouter ces informations avant d'en avoir besoin.
+
+---
+
+# 6. Structure MoveList
+
+Le projet utilise actuellement une structure de type :
+
+```c
+typedef struct
+{
+    Move moves[...];
+    int count;
+} MoveList;
+```
+
+La taille maximale devra être définie proprement.
+
+Prévoir une protection contre le dépassement du tableau.
+
+---
+
+# PHASE 1 — Représentation fiable d'une position
+
+## Étape 1.1 — Finaliser Position
+
+Ajouter :
+
+```text
+castling rights
+en passant square
+halfmove clock
+```
+
+Objectif :
+
+Pouvoir représenter complètement une position d'échecs.
+
+---
+
+## Étape 1.2 — Initialisation
+
+`InitBoard()` doit initialiser :
+
+```text
+plateau
+sideToMove
+droits de roque
+en passant
+compteur 50 coups
+```
+
+Tester que la position initiale est correcte.
+
+---
+
+## Étape 1.3 — Fonctions utilitaires
+
+Créer progressivement :
+
+```c
+IsWhitePiece()
+IsBlackPiece()
+IsEmpty()
+```
+
+Éventuellement :
+
+```c
+IsPiece()
+IsSameColor()
+```
+
+Ces fonctions doivent être simples et réutilisables.
+
+---
+
+## Étape 1.4 — Affichage
+
+`PrintBoard()` doit afficher :
+
+```text
+8 r n b q k b n r
+7 p p p p p p p p
+6 . . . . . . . .
+...
+1 R N B Q K B N R
+  a b c d e f g h
+```
+
+Ajouter éventuellement :
+
+```text
+Side : White
+```
+
+---
+
+# PHASE 2 — Génération des coups
+
+Objectif :
+
+Être capable de générer les coups pseudo-légaux de toutes les pièces.
+
+IMPORTANT :
+
+À ce stade, "pseudo-légal" signifie :
+
+> Le déplacement respecte les règles de déplacement de la pièce mais on ne vérifie pas encore si le roi est en échec.
+
+---
+
+# Étape 2.1 — Pions
+
+Déjà terminé.
+
+Implémenter :
+
+```text
+déplacement d'une case
+double déplacement initial
+capture diagonale
+Blancs
+Noirs
+blocage
+bords du plateau
+```
+
+Tests déjà réalisés.
+
+---
+
+# Étape 2.2 — Cavaliers
+
+Créer :
+
+```c
+GenerateKnightMoves()
+```
+
+Utiliser un tableau de directions :
+
+```c
+int knightDirections[8][2];
+```
+
+Gérer :
+
+```text
+déplacement
+capture
+case occupée par allié
+bords du plateau
+Blancs
+Noirs
+```
+
+Créer des tests unitaires/manuels.
+
+---
+
+# Étape 2.3 — Fous
+
+Créer :
+
+```c
+GenerateBishopMoves()
+```
+
+Le fou se déplace selon quatre directions :
+
+```text
+(+1,+1)
+(+1,-1)
+(-1,+1)
+(-1,-1)
+```
+
+Utiliser des boucles pour parcourir les cases jusqu'à :
+
+```text
+bord
+pièce alliée
+pièce adverse
+```
+
+Important :
+
+Le fou ne peut pas traverser une pièce.
+
+---
+
+# Étape 2.4 — Tours
+
+Créer :
+
+```c
+GenerateRookMoves()
+```
+
+Directions :
+
+```text
+(+1,0)
+(-1,0)
+(0,+1)
+(0,-1)
+```
+
+Même principe que le fou.
+
+---
+
+# Étape 2.5 — Dame
+
+Créer :
+
+```c
+GenerateQueenMoves()
+```
+
+La dame combine :
+
+```text
+tour
++
+fou
+```
+
+On devra éviter autant que possible de dupliquer le code.
+
+---
+
+# Étape 2.6 — Roi
+
+Créer :
+
+```c
+GenerateKingMoves()
+```
+
+Le roi se déplace d'une case dans les huit directions.
+
+À ce stade :
+
+```text
+ne pas encore gérer le roque
+```
+
+Le problème du roi en échec sera traité plus tard.
+
+---
+
+# PHASE 3 — Générateur global
+
+Créer :
+
+```c
+GeneratePseudoLegalMoves()
+```
+
+Cette fonction devra :
+
+```text
+regarder sideToMove
+chercher toutes les pièces du joueur
+appeler la fonction correspondante
+ajouter les coups au MoveList
+```
+
+Architecture :
+
+```text
+GeneratePseudoLegalMoves()
+│
+├── GeneratePawnMoves()
+├── GenerateKnightMoves()
+├── GenerateBishopMoves()
+├── GenerateRookMoves()
+├── GenerateQueenMoves()
+└── GenerateKingMoves()
+```
+
+Objectif :
+
+Depuis la position initiale, obtenir :
+
+```text
+20 coups légaux/pseudo-légaux
+```
+
+---
+
+# PHASE 4 — MakeMove / UndoMove
+
+Cette phase est extrêmement importante pour Minimax.
+
+## Étape 4.1 — Améliorer MakeMove
+
+`MakeMove()` doit gérer correctement :
+
+```text
+déplacement
+capture
+promotion
+roque
+en passant
+sideToMove
+droits de roque
+en passant
+halfmove clock
+```
+
+---
+
+## Étape 4.2 — Créer UndoMove
+
+Créer :
+
+```c
+UndoMove()
+```
+
+Le moteur devra pouvoir faire :
+
+```text
+MakeMove()
+Search()
+UndoMove()
+```
+
+plutôt que de copier inutilement toute la position.
+
+Créer une structure permettant de sauvegarder les informations nécessaires avant un coup.
+
+---
+
+# PHASE 5 — Règles spéciales
+
+## Étape 5.1 — Promotion
+
+Gérer :
+
+```text
+P → Q
+P → R
+P → B
+P → N
+```
+
+pour les deux couleurs.
+
+La génération devra produire quatre coups différents lors d'une promotion.
+
+---
+
+## Étape 5.2 — Roque
+
+Ajouter les droits :
+
+```text
+White kingside
+White queenside
+Black kingside
+Black queenside
+```
+
+Générer les coups :
+
+```text
+O-O
+O-O-O
+```
+
+Conditions :
+
+```text
+roi n'a jamais bougé
+tour concernée n'a jamais bougé
+cases libres
+roi pas en échec
+roi ne traverse pas une case attaquée
+roi n'arrive pas sur une case attaquée
+```
+
+---
+
+## Étape 5.3 — En passant
+
+Ajouter :
+
+```text
+enPassantSquare
+```
+
+Gérer :
+
+```text
+double déplacement de pion
+création de la case en passant
+capture en passant
+suppression du pion capturé
+```
+
+Créer des tests spécifiques.
+
+---
+
+# PHASE 6 — Détection des attaques et de l'échec
+
+Créer :
+
+```c
+IsSquareAttacked()
+```
+
+Cette fonction est fondamentale.
+
+Exemple :
+
+```c
+IsSquareAttacked(position, row, col, side)
+```
+
+Elle devra déterminer si une case est attaquée par un camp.
+
+Elle devra vérifier :
+
+```text
+pions
+cavaliers
+fous
+tours
+dame
+roi
+```
+
+---
+
+# PHASE 7 — Coups légaux
+
+Créer :
+
+```c
+GenerateLegalMoves()
+```
+
+Principe :
+
+```text
+GeneratePseudoLegalMoves()
+        ↓
+pour chaque coup
+        ↓
+MakeMove()
+        ↓
+le roi est-il attaqué ?
+        ↓
+oui → supprimer le coup
+non → conserver le coup
+```
+
+Objectif :
+
+Empêcher :
+
+```text
+roi de rester en échec
+roi de se mettre en échec
+coups illégaux
+```
+
+---
+
+# PHASE 8 — Mat, pat et fin de partie
+
+Créer :
+
+```c
+IsCheck()
+IsCheckmate()
+IsStalemate()
+```
+
+Déterminer :
+
+```text
+échec
+mat
+pat
+```
+
+Puis gérer les autres conditions de fin :
+
+```text
+répétition
+règle des 50 coups
+matériel insuffisant
+```
+
+---
+
+# PHASE 9 — FEN
+
+Implémenter :
+
+```c
+LoadFEN()
+PositionToFEN()
+```
+
+Objectif :
+
+Pouvoir charger une position arbitraire.
+
+Exemple :
+
+```text
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+```
+
+Cela facilitera énormément les tests.
+
+---
+
+# PHASE 10 — Tests du moteur
+
+Créer un système de tests sérieux.
+
+Tester :
+
+```text
+position initiale
+coups possibles
+captures
+échecs
+mat
+pat
+roques
+promotions
+en passant
+positions FEN
+```
+
+Utiliser éventuellement des suites de tests/perft connues.
+
+---
+
+# PHASE 11 — Perft
+
+Implémenter :
+
+```c
+Perft(position, depth)
+```
+
+Objectif :
+
+Vérifier que le générateur de coups est correct.
+
+Exemple position initiale :
+
+```text
+Depth 1 = 20
+Depth 2 = 400
+Depth 3 = 8902
+Depth 4 = 197281
+```
+
+Ces résultats serviront de référence.
+
+Ne pas commencer la recherche Minimax avant d'avoir une génération de coups suffisamment fiable.
+
+---
+
+# PHASE 12 — Fonction d'évaluation
+
+Créer :
+
+```c
+Evaluate()
+```
+
+Premier niveau :
+
+```text
+Pion      = 100
+Cavalier  = 320
+Fou       = 330
+Tour      = 500
+Dame      = 900
+Roi       = valeur spéciale
+```
+
+Score positif :
+
+```text
+avantage Blanc
+```
+
+Score négatif :
+
+```text
+avantage Noir
+```
+
+---
+
+# PHASE 13 — Évaluation positionnelle
+
+Ajouter progressivement :
+
+```text
+valeur des cases
+activité des pièces
+contrôle du centre
+développement
+structure de pions
+pions doublés
+pions isolés
+pions passés
+mobilité
+paire de fous
+sécurité du roi
+espace
+```
+
+Chaque amélioration doit être testée séparément.
+
+Objectif :
+
+Ne pas créer immédiatement une énorme fonction d'évaluation impossible à analyser.
+
+---
+
+# PHASE 14 — Recherche Minimax
+
+Créer :
+
+```c
+Search()
+```
+
+Puis :
+
+```c
+Minimax()
+```
+
+Principe :
+
+```text
+position
+   ↓
+coups possibles
+   ↓
+positions futures
+   ↓
+évaluation
+   ↓
+meilleur coup
+```
+
+Utiliser une recherche récursive.
+
+---
+
+# PHASE 15 — NegaMax
+
+Simplifier éventuellement Minimax en :
+
+```c
+NegaMax()
+```
+
+Principe :
+
+```text
+score = -Search(position suivante)
+```
+
+Cela simplifiera considérablement le code.
+
+---
+
+# PHASE 16 — Alpha-Beta
+
+Implémenter :
+
+```c
+AlphaBeta()
+```
+
+Objectif :
+
+Éviter d'explorer les branches inutiles.
+
+Architecture :
+
+```text
+Search()
+    ↓
+AlphaBeta()
+    ↓
+GenerateLegalMoves()
+    ↓
+MakeMove()
+    ↓
+AlphaBeta()
+    ↓
+UndoMove()
+```
+
+---
+
+# PHASE 17 — Profondeur de recherche
+
+Ajouter :
+
+```text
+depth
+```
+
+Permettre :
+
+```text
+depth 1
+depth 2
+depth 3
+...
+```
+
+Mesurer :
+
+```text
+nodes searched
+time
+NPS = nodes per second
+```
+
+---
+
+# PHASE 18 — Move Ordering
+
+Améliorer Alpha-Beta avec un ordre intelligent des coups.
+
+Priorité approximative :
+
+```text
+captures intéressantes
+promotions
+killer moves
+history heuristic
+```
+
+Objectif :
+
+Permettre à Alpha-Beta de couper davantage de branches.
+
+---
+
+# PHASE 19 — Quiescence Search
+
+Problème :
+
+Une position peut être évaluée alors qu'une capture importante est imminente.
+
+Créer :
+
+```c
+QuiescenceSearch()
+```
+
+Principe :
+
+```text
+position instable
+       ↓
+continuer les captures
+       ↓
+position stable
+       ↓
+Evaluate()
+```
+
+---
+
+# PHASE 20 — Transposition Table
+
+Créer une table de positions déjà analysées.
+
+Ajouter progressivement :
+
+```text
+Zobrist hashing
+```
+
+Puis :
+
+```text
+TranspositionTable
+```
+
+Stocker :
+
+```text
+hash
+depth
+score
+type de score
+meilleur coup
+```
+
+Types :
+
+```text
+EXACT
+LOWERBOUND
+UPPERBOUND
+```
+
+---
+
+# PHASE 21 — Recherche itérative
+
+Implémenter :
+
+```text
+Iterative Deepening
+```
+
+Recherche :
+
+```text
+depth 1
+depth 2
+depth 3
+depth 4
+...
+```
+
+Cela permettra de toujours avoir un meilleur coup disponible si le temps est écoulé.
+
+---
+
+# PHASE 22 — Gestion du temps
+
+Créer un système :
+
+```c
+Search(position, timeLimit)
+```
+
+Le moteur devra surveiller :
+
+```text
+temps disponible
+temps consommé
+```
+
+et arrêter proprement sa recherche.
+
+---
+
+# PHASE 23 — Interface UCI
+
+Implémenter le protocole UCI.
+
+Commandes importantes :
+
+```text
+uci
+isready
+ucinewgame
+position
+go
+stop
+quit
+```
+
+Exemple :
+
+```text
+position startpos moves e2e4 e7e5
+go movetime 1000
+```
+
+Le moteur devra répondre :
+
+```text
+bestmove ...
+```
+
+---
+
+# PHASE 24 — Test avec une interface d'échecs
+
+Avant Lichess, tester le moteur avec une interface compatible UCI.
+
+Objectif :
+
+```text
+Interface
+    ↓
+UCI
+    ↓
+ChessBot
+```
+
+Vérifier :
+
+```text
+chargement position
+recherche
+bestmove
+temps
+coups légaux
+```
+
+---
+
+# PHASE 25 — Bot Lichess
+
+Créer un programme séparé responsable de la communication avec Lichess.
+
+Architecture :
+
+```text
+Lichess API
+     ↓
+Bot controller
+     ↓
+Chess engine
+     ↓
+bestmove
+     ↓
+Lichess API
+```
+
+Le moteur d'échecs doit rester indépendant de Lichess.
+
+---
+
+# PHASE 26 — Tests réels
+
+Faire jouer le moteur contre :
+
+```text
+lui-même
+moteurs faibles
+moteurs connus
+joueurs humains
+```
+
+Mesurer :
+
+```text
+Elo
+winrate
+temps de réflexion
+NPS
+profondeur moyenne
+```
+
+---
+
+# PHASE 27 — Optimisation
+
+Seulement après avoir obtenu un moteur correct.
+
+Optimisations possibles :
+
+```text
+meilleure représentation du plateau
+bitboards éventuellement
+optimisation de MoveList
+réduction des allocations
+Zobrist hashing
+move ordering
+transposition tables
+quiescence
+pruning
+```
+
+Ne pas optimiser prématurément.
+
+---
+
+# PHASE 28 — Amélioration de l'évaluation
+
+Une fois le moteur fonctionnel :
+
+```text
+matériel
++
+piece-square tables
++
+mobilité
++
+structure de pions
++
+sécurité du roi
++
+activité
+```
+
+Tester chaque modification contre une version précédente.
+
+Utiliser des matchs automatisés :
+
+```text
+Version A vs Version B
+```
+
+---
+
+# PHASE 29 — Mesure de progression Elo
+
+Créer des versions :
+
+```text
+v0.1 → génération de coups
+v0.2 → moteur légal
+v0.3 → évaluation
+v0.4 → Minimax
+v0.5 → Alpha-Beta
+v0.6 → Quiescence
+v0.7 → Transposition
+v0.8 → UCI
+v0.9 → Lichess
+v1.0 → moteur stable
+```
+
+Conserver les anciennes versions grâce à Git.
+
+---
+
+# PHASE 30 — Objectif final
+
+Objectif minimum :
+
+```text
+Moteur d'échecs complet
++
+CPU uniquement
++
+C
++
+évaluation manuelle
++
+UCI
++
+bot Lichess
+```
+
+Objectif de puissance réaliste :
+
+```text
+~1500–1800 Elo Lichess
+```
+
+avec une implémentation amateur sérieuse.
+
+Objectif ambitieux :
+
+```text
+2000+ Elo Lichess
+```
+
+en améliorant fortement :
+
+```text
+search
+move ordering
+evaluation
+transposition tables
+time management
+```
+
+---
+
+# RÈGLES DE DÉVELOPPEMENT DU PROJET
+
+## Règle 1 — Une fonctionnalité à la fois
+
+Ne jamais implémenter plusieurs gros systèmes simultanément.
+
+Exemple :
+
+```text
+Cavalier
+↓
+tests
+↓
+commit
+↓
+Fou
+↓
+tests
+↓
+commit
+```
+
+---
+
+## Règle 2 — Toujours tester avant de continuer
+
+Chaque fonctionnalité doit avoir des tests.
+
+Exemple :
+
+```text
+GenerateKnightMoves()
+        ↓
+tests
+        ↓
+résultats corrects
+        ↓
+Git commit
+        ↓
+suite
+```
+
+---
+
+## Règle 3 — Ne pas optimiser trop tôt
+
+Priorité :
+
+```text
+Correctness
+    ↓
+Tests
+    ↓
+Clarté
+    ↓
+Performance
+```
+
+Un moteur rapide mais incorrect ne sert à rien.
+
+---
+
+## Règle 4 — Garder le moteur indépendant de Lichess
+
+Le moteur ne doit jamais dépendre directement de l'API Lichess.
+
+Architecture finale :
+
+```text
+                 ┌───────────────┐
+                 │    Lichess    │
+                 └───────┬───────┘
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │ Bot Controller│
+                 └───────┬───────┘
+                         │ UCI
+                         ▼
+                 ┌───────────────┐
+                 │   ChessBot    │
+                 ├───────────────┤
+                 │ Position      │
+                 │ MoveGen       │
+                 │ Make/Undo     │
+                 │ Evaluation    │
+                 │ Search        │
+                 │ Hashing       │
+                 └───────────────┘
+```
+
+---
+
+# RÈGLES POUR UNE IA QUI REPREND LE PROJET
+
+Une IA travaillant sur ce projet doit :
+
+1. Lire le code existant avant de proposer une modification.
+2. Respecter l'architecture actuelle.
+3. Ne pas réécrire inutilement les fichiers fonctionnels.
+4. Ne pas ajouter de dépendance externe sans justification.
+5. Expliquer chaque nouvelle fonction.
+6. Faire progresser le projet étape par étape.
+7. Fournir du code compilable.
+8. Proposer un test pour chaque nouvelle fonctionnalité.
+9. Ne pas passer à l'étape suivante si les tests échouent.
+10. Préserver les conventions du projet.
+11. Ne pas implémenter Minimax avant que la génération des coups légaux soit fiable.
+12. Ne pas implémenter Lichess avant que le moteur UCI soit fonctionnel.
+13. Ne pas optimiser fortement avant d'avoir un moteur correct.
+14. Utiliser Git régulièrement.
+15. Faire un commit après chaque fonctionnalité importante.
+
+---
+
+# ÉTAT ACTUEL
+
+La dernière fonctionnalité validée est :
+
+```text
+GeneratePawnMoves()
+```
+
+Fonctionnalités validées :
+
+```text
+✓ déplacement blanc
+✓ double déplacement blanc
+✓ déplacement noir
+✓ double déplacement noir
+✓ captures blanches
+✓ captures noires
+✓ blocage
+✓ bords du plateau
+✓ vérification des couleurs
+✓ tests complets
+```
+
+Dernier état du projet :
+
+```text
+Pawn move generation = TERMINÉ
+```
+
+---
+
+# PROCHAINE ÉTAPE
+
+La prochaine tâche est :
+
+```text
+ÉTAPE 1 — Renforcer la structure Position
+```
+
+Avant de continuer les pièces, vérifier que `Position` peut progressivement représenter toutes les informations nécessaires à une véritable partie.
+
+Puis :
+
+```text
+Étape suivante :
+GenerateKnightMoves()
+```
+
+Ne pas commencer Minimax, Alpha-Beta, évaluation ou Lichess tant que le générateur de coups légaux et les tests Perft ne sont pas fiables.

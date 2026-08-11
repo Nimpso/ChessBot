@@ -19,6 +19,6 @@ typedef struct
 
 void MakeMove(Position *position, Move move);
 void GeneratePawnMoves(Position *position, MoveList *moveList);
-
+void GenerateKnightMoves(Position *position, MoveList *moveList);
 
 #endif

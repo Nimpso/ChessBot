@@ -40,6 +40,11 @@ void InitBoard(Position *position)
     position->board[7][7] = 'R';
 
     position->sideToMove = 0;
+
+    position->whiteKingSideCastle = 1;
+    position->whiteQueenSideCastle = 1;
+    position->blackKingSideCastle = 1;
+    position->blackQueenSideCastle = 1;
 }
 
 void PrintBoard(Position *position)

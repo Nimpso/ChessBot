@@ -116,3 +116,66 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
         }
     }
 }
+
+void GenerateKnightMoves(Position *position, MoveList *moveList)
+{
+    int knightMoves[8][2] =
+    {
+        {-2, -1},
+        {-2, +1},
+        {-1, -2},
+        {-1, +2},
+        {+1, -2},
+        {+1, +2},
+        {+2, -1},
+        {+2, +1}
+    };
+
+    moveList->count = 0;
+
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            char piece = position->board[i][j];
+
+            // On cherche uniquement les cavaliers du joueur actuel
+            if (position->sideToMove == 0 && piece != 'N')
+                continue;
+
+            if (position->sideToMove == 1 && piece != 'n')
+                continue;
+
+            // Tester les 8 déplacements
+            for (int k = 0; k < 8; k++)
+            {
+                int newRow = i + knightMoves[k][0];
+                int newCol = j + knightMoves[k][1];
+
+                // Hors de l'échiquier
+                if (newRow < 0 || newRow > 7 ||
+                    newCol < 0 || newCol > 7)
+                {
+                    continue;
+                }
+
+                char target = position->board[newRow][newCol];
+
+                // Case occupée par une pièce alliée
+                if (position->sideToMove == 0 && IsWhitePiece(target))
+                    continue;
+
+                if (position->sideToMove == 1 && IsBlackPiece(target))
+                    continue;
+
+                // Le déplacement est valide
+                moveList->moves[moveList->count].fromRow = i;
+                moveList->moves[moveList->count].fromCol = j;
+                moveList->moves[moveList->count].toRow = newRow;
+                moveList->moves[moveList->count].toCol = newCol;
+
+                moveList->count++;
+            }
+        }
+    }
+}
