@@ -25,5 +25,6 @@ void GenerateRookMoves(Position *position, MoveList *moveList);
 void GenerateQueenMoves(Position *position, MoveList *moveList);
 void GenerateKingMoves(Position *position, MoveList *moveList);
 int IsSquareAttacked(Position *position, int row, int col, int bySide);
+int IsInCheck(Position *position, int side);
 
 #endif

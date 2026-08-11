@@ -457,3 +457,230 @@ void GenerateKingMoves(Position *position, MoveList *moveList)
         }
     }
 }
+
+int IsSquareAttacked(Position *position, int row, int col, int bySide)
+{
+    /*
+     * --------------------------------------------------------
+     * ATTAQUES DES PIONS
+     * --------------------------------------------------------
+     */
+
+    if (bySide == 0) // Blancs
+    {
+        // Un pion blanc attaque row + 1 depuis la case cible
+        if (row < 7)
+        {
+            if (col > 0 && position->board[row + 1][col - 1] == 'P')
+                return 1;
+
+            if (col < 7 && position->board[row + 1][col + 1] == 'P')
+                return 1;
+        }
+    }
+    else // Noirs
+    {
+        // Un pion noir attaque row - 1 depuis la case cible
+        if (row > 0)
+        {
+            if (col > 0 && position->board[row - 1][col - 1] == 'p')
+                return 1;
+
+            if (col < 7 && position->board[row - 1][col + 1] == 'p')
+                return 1;
+        }
+    }
+
+
+    /*
+     * --------------------------------------------------------
+     * ATTAQUES DES CAVALIERS
+     * --------------------------------------------------------
+     */
+
+    char knight = (bySide == 0) ? 'N' : 'n';
+
+    int knightOffsets[8][2] =
+    {
+        {-2, -1},
+        {-2,  1},
+        {-1, -2},
+        {-1,  2},
+        { 1, -2},
+        { 1,  2},
+        { 2, -1},
+        { 2,  1}
+    };
+
+    for (int i = 0; i < 8; i++)
+    {
+        int r = row + knightOffsets[i][0];
+        int c = col + knightOffsets[i][1];
+
+        if (r >= 0 && r < 8 && c >= 0 && c < 8)
+        {
+            if (position->board[r][c] == knight)
+                return 1;
+        }
+    }
+
+
+    /*
+     * --------------------------------------------------------
+     * ATTAQUES DU ROI
+     * --------------------------------------------------------
+     */
+
+    char king = (bySide == 0) ? 'K' : 'k';
+
+    for (int dr = -1; dr <= 1; dr++)
+    {
+        for (int dc = -1; dc <= 1; dc++)
+        {
+            if (dr == 0 && dc == 0)
+                continue;
+
+            int r = row + dr;
+            int c = col + dc;
+
+            if (r >= 0 && r < 8 && c >= 0 && c < 8)
+            {
+                if (position->board[r][c] == king)
+                    return 1;
+            }
+        }
+    }
+
+
+    /*
+     * --------------------------------------------------------
+     * ATTAQUES DES FOUS / DAMES
+     *
+     * diagonales :
+     * haut-gauche
+     * haut-droite
+     * bas-gauche
+     * bas-droite
+     * --------------------------------------------------------
+     */
+
+    char bishop = (bySide == 0) ? 'B' : 'b';
+    char queen  = (bySide == 0) ? 'Q' : 'q';
+
+    int diagonalDirections[4][2] =
+    {
+        {-1, -1},
+        {-1,  1},
+        { 1, -1},
+        { 1,  1}
+    };
+
+    for (int i = 0; i < 4; i++)
+    {
+        int r = row + diagonalDirections[i][0];
+        int c = col + diagonalDirections[i][1];
+
+        while (r >= 0 && r < 8 && c >= 0 && c < 8)
+        {
+            char piece = position->board[r][c];
+
+            if (piece != '.')
+            {
+                if (piece == bishop || piece == queen)
+                    return 1;
+
+                break;
+            }
+
+            r += diagonalDirections[i][0];
+            c += diagonalDirections[i][1];
+        }
+    }
+
+
+    /*
+     * --------------------------------------------------------
+     * ATTAQUES DES TOURS / DAMES
+     *
+     * horizontalement et verticalement
+     * --------------------------------------------------------
+     */
+
+    char rook = (bySide == 0) ? 'R' : 'r';
+
+    int straightDirections[4][2] =
+    {
+        {-1,  0},
+        { 1,  0},
+        { 0, -1},
+        { 0,  1}
+    };
+
+    for (int i = 0; i < 4; i++)
+    {
+        int r = row + straightDirections[i][0];
+        int c = col + straightDirections[i][1];
+
+        while (r >= 0 && r < 8 && c >= 0 && c < 8)
+        {
+            char piece = position->board[r][c];
+
+            if (piece != '.')
+            {
+                if (piece == rook || piece == queen)
+                    return 1;
+
+                break;
+            }
+
+            r += straightDirections[i][0];
+            c += straightDirections[i][1];
+        }
+    }
+
+
+    /*
+     * --------------------------------------------------------
+     * AUCUNE ATTAQUE
+     * --------------------------------------------------------
+     */
+
+    return 0;
+}
+
+int IsInCheck(Position *position, int side)
+{
+    char king = (side == 0) ? 'K' : 'k';
+
+    /*
+     * Chercher le roi du joueur
+     */
+    for (int row = 0; row < 8; row++)
+    {
+        for (int col = 0; col < 8; col++)
+        {
+            if (position->board[row][col] == king)
+            {
+                /*
+                 * Le roi est attaqué par l'adversaire
+                 */
+                int opponentSide = (side == 0) ? 1 : 0;
+
+                return IsSquareAttacked(
+                    position,
+                    row,
+                    col,
+                    opponentSide
+                );
+            }
+        }
+    }
+
+    /*
+     * Aucun roi trouvé.
+     *
+     * Une position d'échecs valide doit toujours
+     * contenir le roi.
+     */
+    return 0;
+}

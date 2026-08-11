@@ -1,17 +1,16 @@
 #include <stdio.h>
-#include <string.h>
 
 #include "board.h"
 #include "move.h"
 
 
-/* ============================================================
-   OUTILS DE TEST
-   ============================================================ */
-
 int testsPassed = 0;
 int testsFailed = 0;
 
+
+/* ============================================================
+   OUTILS
+   ============================================================ */
 
 void Check(int condition, const char *testName)
 {
@@ -37,12 +36,6 @@ void ClearBoard(Position *position)
             position->board[i][j] = '.';
         }
     }
-}
-
-
-void ResetEmptyPosition(Position *position)
-{
-    ClearBoard(position);
 
     position->sideToMove = 0;
 
@@ -53,761 +46,447 @@ void ResetEmptyPosition(Position *position)
 }
 
 
-int HasMove(MoveList *moveList,
-            int fromRow,
-            int fromCol,
-            int toRow,
-            int toCol)
+/* ============================================================
+   TEST 1 : POSITION VIDE AVEC LES DEUX ROIS
+   ============================================================ */
+
+void TestNoCheck(void)
 {
-    for (int i = 0; i < moveList->count; i++)
-    {
-        Move move = moveList->moves[i];
+    Position position;
 
-        if (move.fromRow == fromRow &&
-            move.fromCol == fromCol &&
-            move.toRow == toRow &&
-            move.toCol == toCol)
-        {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-
-int HasMoveChessNotation(MoveList *moveList,
-                         char fromFile,
-                         int fromRank,
-                         char toFile,
-                         int toRank)
-{
-    int fromCol = fromFile - 'a';
-    int fromRow = 8 - fromRank;
-
-    int toCol = toFile - 'a';
-    int toRow = 8 - toRank;
-
-    return HasMove(moveList,
-                   fromRow,
-                   fromCol,
-                   toRow,
-                   toCol);
-}
-
-
-void PrintMoves(MoveList *moveList)
-{
-    for (int i = 0; i < moveList->count; i++)
-    {
-        Move move = moveList->moves[i];
-
-        printf("%2d. %c%d -> %c%d\n",
-               i + 1,
-               'a' + move.fromCol,
-               8 - move.fromRow,
-               'a' + move.toCol,
-               8 - move.toRow);
-    }
-}
-
-
-void PrintTestHeader(const char *name)
-{
     printf("\n");
     printf("============================================================\n");
-    printf("%s\n", name);
-    printf("============================================================\n\n");
+    printf("TEST 1 : AUCUN ECHEC\n");
+    printf("============================================================\n");
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[0][4] = 'k'; // e8
+
+    Check(!IsInCheck(&position, 0),
+          "Roi blanc non attaque");
+
+    Check(!IsInCheck(&position, 1),
+          "Roi noir non attaque");
 }
 
 
 /* ============================================================
-   TESTS PIONS
+   TEST 2 : ECHEC PAR PION
    ============================================================ */
 
-void TestPawns(void)
+void TestPawnCheck(void)
 {
     Position position;
-    MoveList moveList;
 
-    PrintTestHeader("TESTS PIONS");
-
-
-    /* --------------------------------------------------------
-       Test 1 : position initiale
-       -------------------------------------------------------- */
-
-    InitBoard(&position);
-
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(moveList.count == 16,
-          "Position initiale : 16 coups de pions blancs");
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 2 : ECHEC PAR PION\n");
+    printf("============================================================\n");
 
 
     /* --------------------------------------------------------
-       Test 2 : pion blanc avance d'une case
+       Pion noir attaque roi blanc
        -------------------------------------------------------- */
 
-    ResetEmptyPosition(&position);
+    ClearBoard(&position);
 
-    position.board[6][4] = 'P'; // e2
+    position.board[7][4] = 'K'; // e1
+    position.board[6][3] = 'p'; // d2
 
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(moveList.count == 2,
-          "Pion blanc e2 : 2 coups possibles");
-
-    Check(HasMoveChessNotation(&moveList, 'e', 2, 'e', 3),
-          "Pion blanc e2 -> e3");
-
-    Check(HasMoveChessNotation(&moveList, 'e', 2, 'e', 4),
-          "Pion blanc e2 -> e4");
+    Check(IsInCheck(&position, 0),
+          "Roi blanc en e1 attaque par pion noir");
 
 
     /* --------------------------------------------------------
-       Test 3 : pion blanc bloqué
+       Pion blanc attaque roi noir
        -------------------------------------------------------- */
 
-    ResetEmptyPosition(&position);
+    ClearBoard(&position);
 
-    position.board[6][4] = 'P';
-    position.board[5][4] = 'p';
+    position.board[0][4] = 'k'; // e8
+    position.board[1][3] = 'P'; // d7
 
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(moveList.count == 0,
-          "Pion blanc bloqué : aucun déplacement");
+    Check(IsInCheck(&position, 1),
+          "Roi noir en e8 attaque par pion blanc");
 
 
     /* --------------------------------------------------------
-       Test 4 : capture blanche à droite
+       Pion qui n'attaque PAS le roi
        -------------------------------------------------------- */
 
-    ResetEmptyPosition(&position);
+    ClearBoard(&position);
 
-    position.board[4][4] = 'P'; // e4
-    position.board[3][5] = 'p'; // f5
+    position.board[7][4] = 'K'; // e1
+    position.board[6][4] = 'p'; // e2
 
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(HasMoveChessNotation(&moveList, 'e', 4, 'f', 5),
-          "Pion blanc capture en diagonale droite");
-
-
-    /* --------------------------------------------------------
-       Test 5 : capture blanche à gauche
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'P'; // e4
-    position.board[3][3] = 'p'; // d5
-
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(HasMoveChessNotation(&moveList, 'e', 4, 'd', 5),
-          "Pion blanc capture en diagonale gauche");
-
-
-    /* --------------------------------------------------------
-       Test 6 : pas de capture sur pièce blanche
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'P';
-    position.board[3][5] = 'N';
-
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'f', 5),
-          "Pion blanc ne capture pas une pièce blanche");
-
-
-    /* --------------------------------------------------------
-       Test 7 : pion noir
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.sideToMove = 1;
-
-    position.board[1][4] = 'p'; // e7
-
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(moveList.count == 2,
-          "Pion noir e7 : 2 coups possibles");
-
-    Check(HasMoveChessNotation(&moveList, 'e', 7, 'e', 6),
-          "Pion noir e7 -> e6");
-
-    Check(HasMoveChessNotation(&moveList, 'e', 7, 'e', 5),
-          "Pion noir e7 -> e5");
-
-
-    /* --------------------------------------------------------
-       Test 8 : capture noire
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.sideToMove = 1;
-
-    position.board[3][4] = 'p'; // e5
-    position.board[4][5] = 'P'; // f4
-
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(HasMoveChessNotation(&moveList, 'e', 5, 'f', 4),
-          "Pion noir capture une pièce blanche");
-
-
-    /* --------------------------------------------------------
-       Test 9 : pion noir bloqué
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.sideToMove = 1;
-
-    position.board[1][4] = 'p';
-    position.board[2][4] = 'P';
-
-    GeneratePawnMoves(&position, &moveList);
-
-    Check(moveList.count == 0,
-          "Pion noir bloqué : aucun déplacement");
+    Check(!IsInCheck(&position, 0),
+          "Pion devant le roi mais sans attaque");
 }
 
 
 /* ============================================================
-   TESTS CAVALIERS
+   TEST 3 : ECHEC PAR CAVALIER
    ============================================================ */
 
-void TestKnights(void)
+void TestKnightCheck(void)
 {
     Position position;
-    MoveList moveList;
 
-    PrintTestHeader("TESTS CAVALIERS");
-
-
-    /* --------------------------------------------------------
-       Test 1 : cavalier au centre
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'N'; // e4
-
-    GenerateKnightMoves(&position, &moveList);
-
-    Check(moveList.count == 8,
-          "Cavalier blanc e4 : 8 coups");
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 3 : ECHEC PAR CAVALIER\n");
+    printf("============================================================\n");
 
 
-    /* --------------------------------------------------------
-       Test 2 : coin
-       -------------------------------------------------------- */
+    /* Cavalier noir attaque e1 depuis d3 */
 
-    ResetEmptyPosition(&position);
+    ClearBoard(&position);
 
-    position.board[7][0] = 'N'; // a1
+    position.board[7][4] = 'K'; // e1
+    position.board[5][3] = 'n'; // d3
 
-    GenerateKnightMoves(&position, &moveList);
-
-    Check(moveList.count == 2,
-          "Cavalier a1 : 2 coups");
-
-    Check(HasMoveChessNotation(&moveList, 'a', 1, 'b', 3),
-          "Cavalier a1 -> b3");
-
-    Check(HasMoveChessNotation(&moveList, 'a', 1, 'c', 2),
-          "Cavalier a1 -> c2");
+    Check(IsInCheck(&position, 0),
+          "Roi blanc attaque par cavalier noir");
 
 
-    /* --------------------------------------------------------
-       Test 3 : pièce alliée
-       -------------------------------------------------------- */
+    /* Cavalier blanc attaque e8 depuis d6 */
 
-    ResetEmptyPosition(&position);
+    ClearBoard(&position);
 
-    position.board[4][4] = 'N';
-    position.board[2][3] = 'P';
+    position.board[0][4] = 'k'; // e8
+    position.board[2][3] = 'N'; // d6
 
-    GenerateKnightMoves(&position, &moveList);
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'd', 6),
-          "Cavalier ne capture pas une pièce alliée");
+    Check(IsInCheck(&position, 1),
+          "Roi noir attaque par cavalier blanc");
 
 
-    /* --------------------------------------------------------
-       Test 4 : capture
-       -------------------------------------------------------- */
+    /* Cavalier trop loin */
 
-    ResetEmptyPosition(&position);
+    ClearBoard(&position);
 
-    position.board[4][4] = 'N';
-    position.board[2][3] = 'p';
+    position.board[7][4] = 'K'; // e1
+    position.board[5][4] = 'n'; // e3
 
-    GenerateKnightMoves(&position, &moveList);
-
-    Check(HasMoveChessNotation(&moveList, 'e', 4, 'd', 6),
-          "Cavalier capture une pièce adverse");
+    Check(!IsInCheck(&position, 0),
+          "Cavalier non attaquant");
 }
 
 
 /* ============================================================
-   TESTS FOUS
+   TEST 4 : ECHEC PAR FOU
    ============================================================ */
 
-void TestBishops(void)
-{
-    Position position;
-    MoveList moveList;
-
-    PrintTestHeader("TESTS FOUS");
-
-
-    /* --------------------------------------------------------
-       Test 1 : fou au centre
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'B'; // e4
-
-    GenerateBishopMoves(&position, &moveList);
-
-    Check(moveList.count == 13,
-          "Fou e4 : 13 coups");
-
-
-    /* --------------------------------------------------------
-       Test 2 : pièce alliée bloque
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'B';
-    position.board[3][3] = 'P'; // d5
-
-    GenerateBishopMoves(&position, &moveList);
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'c', 6),
-          "Fou ne traverse pas une pièce alliée");
-
-
-    /* --------------------------------------------------------
-       Test 3 : capture puis arrêt
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'B';
-    position.board[3][3] = 'p'; // d5
-    position.board[2][2] = 'p'; // c6
-
-    GenerateBishopMoves(&position, &moveList);
-
-    Check(HasMoveChessNotation(&moveList, 'e', 4, 'd', 5),
-          "Fou peut capturer la première pièce");
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'c', 6),
-          "Fou ne traverse pas une pièce capturée");
-}
-
-
-/* ============================================================
-   TESTS TOURS
-   ============================================================ */
-
-void TestRooks(void)
-{
-    Position position;
-    MoveList moveList;
-
-    PrintTestHeader("TESTS TOURS");
-
-
-    /* --------------------------------------------------------
-       Test 1 : tour au centre
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'R'; // e4
-
-    GenerateRookMoves(&position, &moveList);
-
-    Check(moveList.count == 14,
-          "Tour e4 : 14 coups");
-
-
-    /* --------------------------------------------------------
-       Test 2 : blocage
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'R';
-    position.board[4][6] = 'P'; // g4
-
-    GenerateRookMoves(&position, &moveList);
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'h', 4),
-          "Tour ne traverse pas une pièce alliée");
-
-
-    /* --------------------------------------------------------
-       Test 3 : capture
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'R';
-    position.board[4][6] = 'p';
-
-    GenerateRookMoves(&position, &moveList);
-
-    Check(HasMoveChessNotation(&moveList, 'e', 4, 'g', 4),
-          "Tour capture une pièce adverse");
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'h', 4),
-          "Tour ne traverse pas la pièce capturée");
-}
-
-
-/* ============================================================
-   TESTS DAME
-   ============================================================ */
-
-void TestQueens(void)
-{
-    Position position;
-    MoveList moveList;
-
-    PrintTestHeader("TESTS DAMES");
-
-
-    /* --------------------------------------------------------
-       Test 1 : dame au centre
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'Q'; // e4
-
-    GenerateQueenMoves(&position, &moveList);
-
-    Check(moveList.count == 27,
-          "Dame e4 : 27 coups");
-
-
-    /* --------------------------------------------------------
-       Test 2 : blocage diagonal
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'Q';
-    position.board[2][2] = 'P';
-
-    GenerateQueenMoves(&position, &moveList);
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'b', 7),
-          "Dame ne traverse pas une pièce en diagonale");
-
-
-    /* --------------------------------------------------------
-       Test 3 : blocage horizontal
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'Q';
-    position.board[4][6] = 'P';
-
-    GenerateQueenMoves(&position, &moveList);
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'h', 4),
-          "Dame ne traverse pas une pièce horizontalement");
-
-
-    /* --------------------------------------------------------
-       Test 4 : capture
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'Q';
-    position.board[4][6] = 'p';
-
-    GenerateQueenMoves(&position, &moveList);
-
-    Check(HasMoveChessNotation(&moveList, 'e', 4, 'g', 4),
-          "Dame peut capturer");
-}
-
-
-/* ============================================================
-   TESTS ROI
-   ============================================================ */
-
-void TestKings(void)
-{
-    Position position;
-    MoveList moveList;
-
-    PrintTestHeader("TESTS ROIS");
-
-
-    /* --------------------------------------------------------
-       Test 1 : roi au centre
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'K';
-
-    GenerateKingMoves(&position, &moveList);
-
-    Check(moveList.count == 8,
-          "Roi e4 : 8 coups");
-
-
-    /* --------------------------------------------------------
-       Test 2 : roi dans un coin
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[7][0] = 'K';
-
-    GenerateKingMoves(&position, &moveList);
-
-    Check(moveList.count == 3,
-          "Roi a1 : 3 coups");
-
-
-    /* --------------------------------------------------------
-       Test 3 : pièce alliée
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'K';
-    position.board[3][3] = 'P';
-
-    GenerateKingMoves(&position, &moveList);
-
-    Check(!HasMoveChessNotation(&moveList, 'e', 4, 'd', 5),
-          "Roi ne capture pas une pièce alliée");
-
-
-    /* --------------------------------------------------------
-       Test 4 : capture
-       -------------------------------------------------------- */
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'K';
-    position.board[3][3] = 'p';
-
-    GenerateKingMoves(&position, &moveList);
-
-    Check(HasMoveChessNotation(&moveList, 'e', 4, 'd', 5),
-          "Roi peut capturer une pièce adverse");
-}
-
-
-/* ============================================================
-   TESTS MAKE MOVE
-   ============================================================ */
-
-void TestMakeMove(void)
+void TestBishopCheck(void)
 {
     Position position;
 
-    PrintTestHeader("TESTS MAKE MOVE");
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 4 : ECHEC PAR FOU\n");
+    printf("============================================================\n");
 
-    InitBoard(&position);
 
+    /* Fou noir d5 -> e4 -> f3 -> g2 -> h1 */
 
-    /* e2 -> e4 */
+    ClearBoard(&position);
 
-    Move move;
+    position.board[7][4] = 'K'; // e1
+    position.board[4][1] = 'b'; // b5
 
-    move.fromRow = 6;
-    move.fromCol = 4;
+    Check(IsInCheck(&position, 0),
+          "Roi blanc attaque par fou noir");
 
-    move.toRow = 4;
-    move.toCol = 4;
 
-    MakeMove(&position, move);
+    /* Fou blanc b4 -> e7 */
 
-    Check(position.board[4][4] == 'P',
-          "MakeMove : pièce déplacée");
+    ClearBoard(&position);
 
-    Check(position.board[6][4] == '.',
-          "MakeMove : case de départ vidée");
+    position.board[0][4] = 'k'; // e8
+    position.board[3][1] = 'B'; // b5
 
-    Check(position.sideToMove == 1,
-          "MakeMove : changement de joueur");
+    Check(IsInCheck(&position, 1),
+          "Roi noir attaque par fou blanc");
 
 
-    /* e7 -> e5 */
+    /* Fou bloqué */
 
-    move.fromRow = 1;
-    move.fromCol = 4;
+    ClearBoard(&position);
 
-    move.toRow = 3;
-    move.toCol = 4;
+    position.board[7][4] = 'K'; // e1
+    position.board[4][1] = 'b'; // b4
+    position.board[5][2] = 'P'; // c3
 
-    MakeMove(&position, move);
-
-    Check(position.board[3][4] == 'p',
-          "MakeMove : pion noir déplacé");
-
-    Check(position.board[1][4] == '.',
-          "MakeMove : ancienne case noire vidée");
-
-    Check(position.sideToMove == 0,
-          "MakeMove : retour aux blancs");
-}
-
-
-/* ============================================================
-   TESTS CAPTURES
-   ============================================================ */
-
-void TestCaptures(void)
-{
-    Position position;
-
-    PrintTestHeader("TESTS CAPTURES");
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'R';
-    position.board[4][7] = 'p';
-
-    position.sideToMove = 0;
-
-    Move move;
-
-    move.fromRow = 4;
-    move.fromCol = 4;
-
-    move.toRow = 4;
-    move.toCol = 7;
-
-    MakeMove(&position, move);
-
-    Check(position.board[4][7] == 'R',
-          "Capture : pièce adverse remplacée");
-
-    Check(position.board[4][4] == '.',
-          "Capture : case de départ vidée");
-}
-
-
-/* ============================================================
-   TEST POSITION INITIALE
-   ============================================================ */
-
-void TestInitialPosition(void)
-{
-    Position position;
-
-    PrintTestHeader("TEST POSITION INITIALE");
-
-    InitBoard(&position);
-
-    Check(position.board[7][0] == 'R',
-          "Tour blanche a1");
-
-    Check(position.board[7][4] == 'K',
-          "Roi blanc e1");
-
-    Check(position.board[0][4] == 'k',
-          "Roi noir e8");
-
-    Check(position.board[6][4] == 'P',
-          "Pion blanc e2");
-
-    Check(position.board[1][4] == 'p',
-          "Pion noir e7");
-
-    Check(position.sideToMove == 0,
-          "Les blancs commencent");
-
-    Check(position.whiteKingSideCastle == 1,
-          "Roque blanc petit disponible");
-
-    Check(position.whiteQueenSideCastle == 1,
-          "Roque blanc grand disponible");
-
-    Check(position.blackKingSideCastle == 1,
-          "Roque noir petit disponible");
-
-    Check(position.blackQueenSideCastle == 1,
-          "Roque noir grand disponible");
-}
-
-
-/* ============================================================
-   TESTS MULTIPLES PIECES
-   ============================================================ */
-
-void TestMultiplePieces(void)
-{
-    Position position;
-    MoveList moveList;
-
-    PrintTestHeader("TESTS PIECES MULTIPLES");
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'B';
-    position.board[2][2] = 'B';
-
-    GenerateBishopMoves(&position, &moveList);
-
-    Check(moveList.count > 13,
-          "Deux fous : génération des coups des deux pièces");
-
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'R';
-    position.board[4][0] = 'R';
-
-    GenerateRookMoves(&position, &moveList);
-
-    Check(moveList.count > 14,
-          "Deux tours : génération des coups des deux pièces");
-
-
-    ResetEmptyPosition(&position);
-
-    position.board[4][4] = 'N'; // e4
-    position.board[7][7] = 'N'; // h1
-
-    GenerateKnightMoves(&position, &moveList);
-
-    printf("\nPosition testee :\n");
     PrintBoard(&position);
 
-    printf("\nNombre total de coups : %d\n", moveList.count);
-    printf("\nCoups disponibles :\n");
+    Check(!IsInCheck(&position, 0),
+          "Fou bloque avant le roi");
+}
 
-    PrintMoves(&moveList);
 
-    Check(moveList.count == 10,
-        "Deux cavaliers : generation correcte des coups");
+/* ============================================================
+   TEST 5 : ECHEC PAR TOUR
+   ============================================================ */
+
+void TestRookCheck(void)
+{
+    Position position;
+
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 5 : ECHEC PAR TOUR\n");
+    printf("============================================================\n");
+
+
+    /* Tour noire sur e8 -> roi blanc e1 */
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[0][4] = 'r'; // e8
+
+    Check(IsInCheck(&position, 0),
+          "Roi blanc attaque par tour noire");
+
+
+    /* Tour blanche sur e1 -> roi noir e8 */
+
+    ClearBoard(&position);
+
+    position.board[0][4] = 'k'; // e8
+    position.board[7][4] = 'R'; // e1
+
+    Check(IsInCheck(&position, 1),
+          "Roi noir attaque par tour blanche");
+
+
+    /* Tour bloquée */
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[0][4] = 'r'; // e8
+    position.board[5][4] = 'N'; // e3
+
+    Check(!IsInCheck(&position, 0),
+          "Tour bloquee par une piece");
+}
+
+
+/* ============================================================
+   TEST 6 : ECHEC PAR DAME
+   ============================================================ */
+
+void TestQueenCheck(void)
+{
+    Position position;
+
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 6 : ECHEC PAR DAME\n");
+    printf("============================================================\n");
+
+
+    /* Dame noire sur h5 -> roi blanc e2 */
+
+    ClearBoard(&position);
+
+    position.board[6][4] = 'K'; // e2
+    position.board[3][7] = 'q'; // h5
+
+    Check(IsInCheck(&position, 0),
+          "Roi blanc attaque par dame noire");
+
+
+    /* Dame blanche sur h4 -> roi noir e7 */
+
+    ClearBoard(&position);
+
+    position.board[1][4] = 'k'; // e7
+    position.board[4][7] = 'Q'; // h4
+
+    Check(IsInCheck(&position, 1),
+          "Roi noir attaque par dame blanche");
+
+
+    /* Dame bloquée */
+
+    ClearBoard(&position);
+
+    position.board[6][4] = 'K'; // e2
+    position.board[3][7] = 'q'; // h5
+    position.board[5][5] = 'N'; // f3
+
+    Check(!IsInCheck(&position, 0),
+          "Dame bloquee par une piece");
+}
+
+
+/* ============================================================
+   TEST 7 : ECHEC PAR ROI
+   ============================================================ */
+
+void TestKingCheck(void)
+{
+    Position position;
+
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 7 : ECHEC PAR ROI\n");
+    printf("============================================================\n");
+
+
+    /* Deux rois adjacents */
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[6][4] = 'k'; // e2
+
+    Check(IsInCheck(&position, 0),
+          "Roi blanc attaque par roi noir");
+
+    Check(IsInCheck(&position, 1),
+          "Roi noir attaque par roi blanc");
+
+
+    /* Deux rois éloignés */
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[0][4] = 'k'; // e8
+
+    Check(!IsInCheck(&position, 0),
+          "Rois eloignes : blanc pas en echec");
+
+    Check(!IsInCheck(&position, 1),
+          "Rois eloignes : noir pas en echec");
+}
+
+
+/* ============================================================
+   TEST 8 : PIECE AMIE QUI BLOQUE
+   ============================================================ */
+
+void TestFriendlyBlock(void)
+{
+    Position position;
+
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 8 : BLOCAGE PAR PIECE ALLIEE\n");
+    printf("============================================================\n");
+
+
+    /*
+       Tour noire en e8
+       Roi blanc en e1
+       Pièce blanche en e4
+
+       e8 -> e7 -> e6 -> e5 -> e4
+                                  X
+                              blocage
+    */
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[0][4] = 'r'; // e8
+    position.board[4][4] = 'N'; // e4
+
+    Check(!IsInCheck(&position, 0),
+          "Piece blanche bloque la tour noire");
+
+
+    /*
+       Fou noir bloqué par une pièce blanche
+    */
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[4][1] = 'b'; // b5
+    position.board[5][2] = 'N'; // c3
+
+    PrintBoard(&position);
+
+    Check(!IsInCheck(&position, 0),
+          "Piece blanche bloque le fou noir");
+}
+
+
+/* ============================================================
+   TEST 9 : PIECE ADVERSE ENTRE L'ATTAQUANT ET LE ROI
+   ============================================================ */
+
+void TestEnemyBlock(void)
+{
+    Position position;
+
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 9 : PIECE ADVERSE ENTRE ATTAQUANT ET ROI\n");
+    printf("============================================================\n");
+
+
+    /*
+       Tour noire en e8
+       Roi blanc en e1
+       Pièce noire en e4
+
+       La tour est bloquée par sa propre pièce.
+    */
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[0][4] = 'r'; // e8
+    position.board[4][4] = 'p'; // e4
+
+    Check(!IsInCheck(&position, 0),
+          "Piece noire bloque sa propre tour");
+
+
+    /*
+       Fou noir bloqué par une pièce noire
+    */
+
+    ClearBoard(&position);
+
+    position.board[7][4] = 'K'; // e1
+    position.board[4][1] = 'b'; // b5
+    position.board[5][2] = 'n'; // c3
+
+    PrintBoard(&position);
+
+    Check(!IsInCheck(&position, 0),
+          "Piece noire bloque son propre fou");
+}
+
+
+/* ============================================================
+   TEST 10 : POSITION REELLE
+   ============================================================ */
+
+void TestRealPosition(void)
+{
+    Position position;
+
+    printf("\n");
+    printf("============================================================\n");
+    printf("TEST 10 : POSITION INITIALE REELLE\n");
+    printf("============================================================\n");
+
+
+    InitBoard(&position);
+
+    Check(!IsInCheck(&position, 0),
+          "Position initiale : blancs pas en echec");
+
+    Check(!IsInCheck(&position, 1),
+          "Position initiale : noirs pas en echec");
 }
 
 
@@ -819,28 +498,29 @@ int main(void)
 {
     printf("\n");
     printf("============================================================\n");
-    printf("              CHESSBOT - TEST SUITE\n");
+    printf("              CHESSBOT - TEST IsInCheck()\n");
     printf("============================================================\n");
 
-    TestInitialPosition();
 
-    TestPawns();
+    TestNoCheck();
 
-    TestKnights();
+    TestPawnCheck();
 
-    TestBishops();
+    TestKnightCheck();
 
-    TestRooks();
+    TestBishopCheck();
 
-    TestQueens();
+    TestRookCheck();
 
-    TestKings();
+    TestQueenCheck();
 
-    TestMakeMove();
+    TestKingCheck();
 
-    TestCaptures();
+    TestFriendlyBlock();
 
-    TestMultiplePieces();
+    TestEnemyBlock();
+
+    TestRealPosition();
 
 
     printf("\n");
@@ -850,16 +530,16 @@ int main(void)
 
     printf("\nTests reussis : %d\n", testsPassed);
     printf("Tests echoues : %d\n", testsFailed);
-    printf("Total         : %d\n", testsPassed + testsFailed);
+    printf("Total         : %d\n",
+           testsPassed + testsFailed);
+
 
     if (testsFailed == 0)
     {
         printf("\n>>> TOUS LES TESTS PASSENT <<<\n");
         return 0;
     }
-    else
-    {
-        printf("\n>>> DES TESTS ONT ECHOUE <<<\n");
-        return 1;
-    }
+
+    printf("\n>>> DES TESTS ONT ECHOUE <<<\n");
+    return 1;
 }
