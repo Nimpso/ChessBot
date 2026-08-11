@@ -11,6 +11,14 @@ typedef struct
     int toCol;
 } Move;
 
+typedef struct
+{
+    Move moves[256];
+    int count;
+} MoveList;
+
 void MakeMove(Position *position, Move move);
+void GeneratePawnMoves(Position *position, MoveList *moveList);
+
 
 #endif

@@ -2,39 +2,88 @@
 #include "board.h"
 #include "move.h"
 
+void PrintMoveList(MoveList *moveList)
+{
+    printf("\nNombre de coups : %d\n", moveList->count);
+
+    for (int i = 0; i < moveList->count; i++)
+    {
+        Move move = moveList->moves[i];
+
+        printf("%2d. %c%d -> %c%d\n",
+               i + 1,
+               'a' + move.fromCol,
+               8 - move.fromRow,
+               'a' + move.toCol,
+               8 - move.toRow);
+    }
+}
+
+void PrintSide(Position *position)
+{
+    printf("\nSide : %s\n",
+           position->sideToMove == 0 ? "White" : "Black");
+}
+
 int main(void)
 {
-    Position myposition;
+    Position position;
+    MoveList moveList;
 
-    printf("ChessBot\n");
+    printf("========== CHESSBOT TEST ==========\n");
 
-    InitBoard(&myposition);
-    PrintBoard(&myposition);
+    /*
+     * TEST 1 : position initiale
+     */
+    printf("\n===== TEST 1 : POSITION INITIALE =====\n");
 
-    printf("Side : %s\n",myposition.sideToMove == 0 ? "White" : "Black");
+    InitBoard(&position);
+    PrintBoard(&position);
+    PrintSide(&position);
 
-    Move move_test;
+    GeneratePawnMoves(&position, &moveList);
+    PrintMoveList(&moveList);
 
-    move_test.fromRow = 6;
-    move_test.fromCol = 4;
-    move_test.toRow = 4;
-    move_test.toCol = 4;
 
-    MakeMove(&myposition, move_test);
-    PrintBoard(&myposition);
+    /*
+     * TEST 2 : e2-e4
+     */
+    printf("\n===== TEST 2 : e2-e4 =====\n");
 
-    printf("Side : %s\n",myposition.sideToMove == 0 ? "White" : "Black");
+    Move move;
 
-    move_test.fromRow = 1;
-    move_test.fromCol = 4;
-    move_test.toRow = 3;
-    move_test.toCol = 4;
+    move.fromRow = 6;
+    move.fromCol = 4;
+    move.toRow = 4;
+    move.toCol = 4;
 
-    MakeMove(&myposition, move_test);
-    PrintBoard(&myposition);
+    MakeMove(&position, move);
 
-    printf("Side : %s\n",myposition.sideToMove == 0 ? "White" : "Black");
+    PrintBoard(&position);
+    PrintSide(&position);
+
+    GeneratePawnMoves(&position, &moveList);
+    PrintMoveList(&moveList);
+
+
+    /*
+     * TEST 3 : e7-e5
+     */
+    printf("\n===== TEST 3 : e7-e5 =====\n");
+
+    move.fromRow = 1;
+    move.fromCol = 4;
+    move.toRow = 3;
+    move.toCol = 4;
+
+    MakeMove(&position, move);
+
+    PrintBoard(&position);
+    PrintSide(&position);
+
+    GeneratePawnMoves(&position, &moveList);
+    PrintMoveList(&moveList);
 
 
     return 0;
-}  
+}
