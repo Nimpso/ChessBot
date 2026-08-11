@@ -17,3 +17,6 @@ bin/
 
 # Temporary files
 *.tmp
+
+# Fichiers personnels / instructions
+instructions.txt
