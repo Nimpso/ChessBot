@@ -4,489 +4,370 @@
 #include "move.h"
 
 
-int testsPassed = 0;
-int testsFailed = 0;
-
-
 /* ============================================================
-   OUTILS
+   OUTILS D'AFFICHAGE
    ============================================================ */
 
-void Check(int condition, const char *testName)
+void PrintMove(Move move)
 {
-    if (condition)
+    printf("%c%d -> %c%d\n",
+           'a' + move.fromCol,
+           8 - move.fromRow,
+           'a' + move.toCol,
+           8 - move.toRow);
+}
+
+
+void PrintMoveList(MoveList *moveList)
+{
+    for (int i = 0; i < moveList->count; i++)
     {
-        printf("[PASS] %s\n", testName);
-        testsPassed++;
-    }
-    else
-    {
-        printf("[FAIL] %s\n", testName);
-        testsFailed++;
+        printf("%3d. ", i + 1);
+        PrintMove(moveList->moves[i]);
     }
 }
 
 
-void ClearBoard(Position *position)
+/* ============================================================
+   TEST 1
+   POSITION INITIALE
+   ============================================================ */
+
+void TestMoveGeneration(void)
 {
+    Position position;
+    MoveList moveList;
+
+    InitBoard(&position);
+
+    printf("\n");
+    printf("========================================\n");
+    printf("     TEST 1 : POSITION INITIALE\n");
+    printf("========================================\n\n");
+
+    PrintBoard(&position);
+
+    moveList.count = 0;
+
+
+    /* --------------------------------------------------------
+       PIONS
+       -------------------------------------------------------- */
+
+    printf("\n--- Pions ---\n");
+
+    GeneratePawnMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
+
+    if (moveList.count == 16)
+        printf("[PASS] 16 coups de pions\n");
+    else
+        printf("[FAIL] Attendu : 16\n");
+
+
+    /* --------------------------------------------------------
+       CAVALIERS
+       -------------------------------------------------------- */
+
+    printf("\n--- Cavaliers ---\n");
+
+    GenerateKnightMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
+
+    if (moveList.count == 20)
+        printf("[PASS] 16 pions + 4 cavaliers = 20\n");
+    else
+        printf("[FAIL] Attendu : 20\n");
+
+
+    /* --------------------------------------------------------
+       FOUS
+       -------------------------------------------------------- */
+
+    printf("\n--- Fous ---\n");
+
+    GenerateBishopMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
+
+    if (moveList.count == 20)
+        printf("[PASS] Les fous sont bloques\n");
+    else
+        printf("[FAIL] Les fous ne devraient pas bouger\n");
+
+
+    /* --------------------------------------------------------
+       TOURS
+       -------------------------------------------------------- */
+
+    printf("\n--- Tours ---\n");
+
+    GenerateRookMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
+
+    if (moveList.count == 20)
+        printf("[PASS] Les tours sont bloquees\n");
+    else
+        printf("[FAIL] Les tours ne devraient pas bouger\n");
+
+
+    /* --------------------------------------------------------
+       DAMES
+       -------------------------------------------------------- */
+
+    printf("\n--- Dames ---\n");
+
+    GenerateQueenMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
+
+    if (moveList.count == 20)
+        printf("[PASS] Les dames sont bloquees\n");
+    else
+        printf("[FAIL] Les dames ne devraient pas bouger\n");
+
+
+    /* --------------------------------------------------------
+       ROIS
+       -------------------------------------------------------- */
+
+    printf("\n--- Rois ---\n");
+
+    GenerateKingMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
+
+    if (moveList.count == 20)
+        printf("[PASS] Les rois sont bloques\n");
+    else
+        printf("[FAIL] Les rois ne devraient pas bouger\n");
+
+
+    printf("\nListe finale :\n\n");
+
+    PrintMoveList(&moveList);
+}
+
+
+/* ============================================================
+   TEST 2
+   ACCUMULATION DES GENERATEURS
+   ============================================================ */
+
+void TestMoveListAccumulation(void)
+{
+    Position position;
+    MoveList moveList;
+
+
+    /*
+       Position :
+
+       8 . . . . k . . .
+       7 . . . . . . . .
+       6 . . . . . . . .
+       5 . . . B . . . .
+       4 . . . . . N . .
+       3 . . . . . . . .
+       2 . . . . . . . .
+       1 . . . . K . . R
+         a b c d e f g h
+    */
+
+
+    /* --------------------------------------------------------
+       CREATION DE LA POSITION
+       -------------------------------------------------------- */
+
     for (int i = 0; i < 8; i++)
     {
         for (int j = 0; j < 8; j++)
         {
-            position->board[i][j] = '.';
+            position.board[i][j] = '.';
         }
     }
 
-    position->sideToMove = 0;
+    position.sideToMove = 0;
 
-    position->whiteKingSideCastle = 0;
-    position->whiteQueenSideCastle = 0;
-    position->blackKingSideCastle = 0;
-    position->blackQueenSideCastle = 0;
-}
-
-
-/* ============================================================
-   TEST 1 : POSITION VIDE AVEC LES DEUX ROIS
-   ============================================================ */
-
-void TestNoCheck(void)
-{
-    Position position;
-
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 1 : AUCUN ECHEC\n");
-    printf("============================================================\n");
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[0][4] = 'k'; // e8
-
-    Check(!IsInCheck(&position, 0),
-          "Roi blanc non attaque");
-
-    Check(!IsInCheck(&position, 1),
-          "Roi noir non attaque");
-}
+    position.whiteKingSideCastle = 0;
+    position.whiteQueenSideCastle = 0;
+    position.blackKingSideCastle = 0;
+    position.blackQueenSideCastle = 0;
 
 
-/* ============================================================
-   TEST 2 : ECHEC PAR PION
-   ============================================================ */
+    /* Pieces blanches */
 
-void TestPawnCheck(void)
-{
-    Position position;
+    position.board[7][4] = 'K';   // e1
+    position.board[7][7] = 'R';   // h1
+    position.board[3][3] = 'B';   // d5
+    position.board[4][6] = 'N';   // g4
 
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 2 : ECHEC PAR PION\n");
-    printf("============================================================\n");
+
+    /* Roi noir */
+
+    position.board[0][4] = 'k';   // e8
 
 
     /* --------------------------------------------------------
-       Pion noir attaque roi blanc
+       AFFICHAGE
        -------------------------------------------------------- */
 
-    ClearBoard(&position);
+    printf("\n");
+    printf("========================================\n");
+    printf(" TEST 2 : ACCUMULATION DES GENERATEURS\n");
+    printf("========================================\n\n");
 
-    position.board[7][4] = 'K'; // e1
-    position.board[6][3] = 'p'; // d2
-
-    Check(IsInCheck(&position, 0),
-          "Roi blanc en e1 attaque par pion noir");
+    PrintBoard(&position);
 
 
     /* --------------------------------------------------------
-       Pion blanc attaque roi noir
+       LISTE VIDE
        -------------------------------------------------------- */
 
-    ClearBoard(&position);
-
-    position.board[0][4] = 'k'; // e8
-    position.board[1][3] = 'P'; // d7
-
-    Check(IsInCheck(&position, 1),
-          "Roi noir en e8 attaque par pion blanc");
+    moveList.count = 0;
 
 
     /* --------------------------------------------------------
-       Pion qui n'attaque PAS le roi
+       PIONS
        -------------------------------------------------------- */
 
-    ClearBoard(&position);
+    printf("\n--- Generation des pions ---\n");
 
-    position.board[7][4] = 'K'; // e1
-    position.board[6][4] = 'p'; // e2
+    GeneratePawnMoves(&position, &moveList);
 
-    Check(!IsInCheck(&position, 0),
-          "Pion devant le roi mais sans attaque");
-}
+    printf("Nombre de coups : %d\n", moveList.count);
 
+    if (moveList.count == 0)
+        printf("[PASS] Aucun pion\n");
+    else
+        printf("[FAIL] Aucun pion ne devrait etre present\n");
 
-/* ============================================================
-   TEST 3 : ECHEC PAR CAVALIER
-   ============================================================ */
 
-void TestKnightCheck(void)
-{
-    Position position;
+    /* --------------------------------------------------------
+       CAVALIER
+       -------------------------------------------------------- */
 
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 3 : ECHEC PAR CAVALIER\n");
-    printf("============================================================\n");
+    printf("\n--- Generation des cavaliers ---\n");
 
+    GenerateKnightMoves(&position, &moveList);
 
-    /* Cavalier noir attaque e1 depuis d3 */
+    printf("Nombre de coups : %d\n", moveList.count);
 
-    ClearBoard(&position);
+    if (moveList.count == 6)
+        printf("[PASS] 6 coups de cavalier\n");
+    else
+        printf("[FAIL] Attendu : 6\n");
 
-    position.board[7][4] = 'K'; // e1
-    position.board[5][3] = 'n'; // d3
 
-    Check(IsInCheck(&position, 0),
-          "Roi blanc attaque par cavalier noir");
+    /* --------------------------------------------------------
+       FOU
+       -------------------------------------------------------- */
 
+    printf("\n--- Generation des fous ---\n");
 
-    /* Cavalier blanc attaque e8 depuis d6 */
+    GenerateBishopMoves(&position, &moveList);
 
-    ClearBoard(&position);
-
-    position.board[0][4] = 'k'; // e8
-    position.board[2][3] = 'N'; // d6
-
-    Check(IsInCheck(&position, 1),
-          "Roi noir attaque par cavalier blanc");
-
-
-    /* Cavalier trop loin */
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[5][4] = 'n'; // e3
-
-    Check(!IsInCheck(&position, 0),
-          "Cavalier non attaquant");
-}
-
-
-/* ============================================================
-   TEST 4 : ECHEC PAR FOU
-   ============================================================ */
-
-void TestBishopCheck(void)
-{
-    Position position;
-
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 4 : ECHEC PAR FOU\n");
-    printf("============================================================\n");
-
-
-    /* Fou noir d5 -> e4 -> f3 -> g2 -> h1 */
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[4][1] = 'b'; // b5
-
-    Check(IsInCheck(&position, 0),
-          "Roi blanc attaque par fou noir");
-
-
-    /* Fou blanc b4 -> e7 */
-
-    ClearBoard(&position);
-
-    position.board[0][4] = 'k'; // e8
-    position.board[3][1] = 'B'; // b5
-
-    Check(IsInCheck(&position, 1),
-          "Roi noir attaque par fou blanc");
-
-
-    /* Fou bloqué */
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[4][1] = 'b'; // b4
-    position.board[5][2] = 'P'; // c3
-
-    PrintBoard(&position);
-
-    Check(!IsInCheck(&position, 0),
-          "Fou bloque avant le roi");
-}
-
-
-/* ============================================================
-   TEST 5 : ECHEC PAR TOUR
-   ============================================================ */
-
-void TestRookCheck(void)
-{
-    Position position;
-
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 5 : ECHEC PAR TOUR\n");
-    printf("============================================================\n");
-
-
-    /* Tour noire sur e8 -> roi blanc e1 */
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[0][4] = 'r'; // e8
-
-    Check(IsInCheck(&position, 0),
-          "Roi blanc attaque par tour noire");
-
-
-    /* Tour blanche sur e1 -> roi noir e8 */
-
-    ClearBoard(&position);
-
-    position.board[0][4] = 'k'; // e8
-    position.board[7][4] = 'R'; // e1
-
-    Check(IsInCheck(&position, 1),
-          "Roi noir attaque par tour blanche");
-
-
-    /* Tour bloquée */
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[0][4] = 'r'; // e8
-    position.board[5][4] = 'N'; // e3
-
-    Check(!IsInCheck(&position, 0),
-          "Tour bloquee par une piece");
-}
-
-
-/* ============================================================
-   TEST 6 : ECHEC PAR DAME
-   ============================================================ */
-
-void TestQueenCheck(void)
-{
-    Position position;
-
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 6 : ECHEC PAR DAME\n");
-    printf("============================================================\n");
-
-
-    /* Dame noire sur h5 -> roi blanc e2 */
-
-    ClearBoard(&position);
-
-    position.board[6][4] = 'K'; // e2
-    position.board[3][7] = 'q'; // h5
-
-    Check(IsInCheck(&position, 0),
-          "Roi blanc attaque par dame noire");
-
-
-    /* Dame blanche sur h4 -> roi noir e7 */
-
-    ClearBoard(&position);
-
-    position.board[1][4] = 'k'; // e7
-    position.board[4][7] = 'Q'; // h4
-
-    Check(IsInCheck(&position, 1),
-          "Roi noir attaque par dame blanche");
-
-
-    /* Dame bloquée */
-
-    ClearBoard(&position);
-
-    position.board[6][4] = 'K'; // e2
-    position.board[3][7] = 'q'; // h5
-    position.board[5][5] = 'N'; // f3
-
-    Check(!IsInCheck(&position, 0),
-          "Dame bloquee par une piece");
-}
-
-
-/* ============================================================
-   TEST 7 : ECHEC PAR ROI
-   ============================================================ */
-
-void TestKingCheck(void)
-{
-    Position position;
-
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 7 : ECHEC PAR ROI\n");
-    printf("============================================================\n");
-
-
-    /* Deux rois adjacents */
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[6][4] = 'k'; // e2
-
-    Check(IsInCheck(&position, 0),
-          "Roi blanc attaque par roi noir");
-
-    Check(IsInCheck(&position, 1),
-          "Roi noir attaque par roi blanc");
-
-
-    /* Deux rois éloignés */
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[0][4] = 'k'; // e8
-
-    Check(!IsInCheck(&position, 0),
-          "Rois eloignes : blanc pas en echec");
-
-    Check(!IsInCheck(&position, 1),
-          "Rois eloignes : noir pas en echec");
-}
-
-
-/* ============================================================
-   TEST 8 : PIECE AMIE QUI BLOQUE
-   ============================================================ */
-
-void TestFriendlyBlock(void)
-{
-    Position position;
-
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 8 : BLOCAGE PAR PIECE ALLIEE\n");
-    printf("============================================================\n");
-
+    printf("Nombre de coups : %d\n", moveList.count);
 
     /*
-       Tour noire en e8
-       Roi blanc en e1
-       Pièce blanche en e4
+       Fou d5 :
 
-       e8 -> e7 -> e6 -> e5 -> e4
-                                  X
-                              blocage
+       c6 b7 a8
+       e6 f7 g8
+       c4 b3 a2
+       e4 f3 g2 
+
+       = 12 coups
+
+       6 + 12 = 18
     */
 
-    ClearBoard(&position);
+    if (moveList.count == 18)
+        printf("[PASS] 6 cavaliers + 12 fous = 18\n");
+    else
+        printf("[FAIL] Attendu : 18\n");
 
-    position.board[7][4] = 'K'; // e1
-    position.board[0][4] = 'r'; // e8
-    position.board[4][4] = 'N'; // e4
 
-    Check(!IsInCheck(&position, 0),
-          "Piece blanche bloque la tour noire");
+    /* --------------------------------------------------------
+       TOUR
+       -------------------------------------------------------- */
 
+    printf("\n--- Generation des tours ---\n");
+
+    GenerateRookMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
 
     /*
-       Fou noir bloqué par une pièce blanche
+       Tour h1 :
+
+       g1 f1
+       h2 h3 h4 h5 h6 h7 h8
+
+       = 10 coups
+
+       18 + 9 = 27
     */
 
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[4][1] = 'b'; // b5
-    position.board[5][2] = 'N'; // c3
-
-    PrintBoard(&position);
-
-    Check(!IsInCheck(&position, 0),
-          "Piece blanche bloque le fou noir");
-}
+    if (moveList.count == 27)
+        printf("[PASS] 18 + 9 tours = 27\n");
+    else
+        printf("[FAIL] Attendu : 27\n");
 
 
-/* ============================================================
-   TEST 9 : PIECE ADVERSE ENTRE L'ATTAQUANT ET LE ROI
-   ============================================================ */
+    /* --------------------------------------------------------
+       DAME
+       -------------------------------------------------------- */
 
-void TestEnemyBlock(void)
-{
-    Position position;
+    printf("\n--- Generation des dames ---\n");
+
+    GenerateQueenMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
+
+    /*
+       Il n'y a aucune dame.
+       Le count doit donc rester a 27.
+    */
+
+    if (moveList.count == 27)
+        printf("[PASS] Aucune dame, count conserve\n");
+    else
+        printf("[FAIL] Le count a ete modifie\n");
+
+
+    /* --------------------------------------------------------
+       ROI
+       -------------------------------------------------------- */
+
+    printf("\n--- Generation du roi ---\n");
+
+    GenerateKingMoves(&position, &moveList);
+
+    printf("Nombre de coups : %d\n", moveList.count);
 
     printf("\n");
-    printf("============================================================\n");
-    printf("TEST 9 : PIECE ADVERSE ENTRE ATTAQUANT ET ROI\n");
-    printf("============================================================\n");
 
 
-    /*
-       Tour noire en e8
-       Roi blanc en e1
-       Pièce noire en e4
+    /* --------------------------------------------------------
+       LISTE COMPLETE
+       -------------------------------------------------------- */
 
-       La tour est bloquée par sa propre pièce.
-    */
+    printf("========================================\n");
+    printf("       LISTE COMPLETE DES COUPS\n");
+    printf("========================================\n\n");
 
-    ClearBoard(&position);
+    printf("Nombre total : %d\n\n", moveList.count);
 
-    position.board[7][4] = 'K'; // e1
-    position.board[0][4] = 'r'; // e8
-    position.board[4][4] = 'p'; // e4
-
-    Check(!IsInCheck(&position, 0),
-          "Piece noire bloque sa propre tour");
+    PrintMoveList(&moveList);
 
 
-    /*
-       Fou noir bloqué par une pièce noire
-    */
-
-    ClearBoard(&position);
-
-    position.board[7][4] = 'K'; // e1
-    position.board[4][1] = 'b'; // b5
-    position.board[5][2] = 'n'; // c3
-
-    PrintBoard(&position);
-
-    Check(!IsInCheck(&position, 0),
-          "Piece noire bloque son propre fou");
-}
-
-
-/* ============================================================
-   TEST 10 : POSITION REELLE
-   ============================================================ */
-
-void TestRealPosition(void)
-{
-    Position position;
-
-    printf("\n");
-    printf("============================================================\n");
-    printf("TEST 10 : POSITION INITIALE REELLE\n");
-    printf("============================================================\n");
-
-
-    InitBoard(&position);
-
-    Check(!IsInCheck(&position, 0),
-          "Position initiale : blancs pas en echec");
-
-    Check(!IsInCheck(&position, 1),
-          "Position initiale : noirs pas en echec");
+    printf("\n========================================\n");
+    printf("           FIN DU TEST 2\n");
+    printf("========================================\n");
 }
 
 
@@ -497,49 +378,34 @@ void TestRealPosition(void)
 int main(void)
 {
     printf("\n");
-    printf("============================================================\n");
-    printf("              CHESSBOT - TEST IsInCheck()\n");
-    printf("============================================================\n");
+    printf("========================================\n");
+    printf("          CHESSBOT - TESTS\n");
+    printf("========================================\n");
 
 
-    TestNoCheck();
+    /*
+     * Test 1 :
+     * vérifie que les générateurs peuvent
+     * s'enchaîner sur la position initiale.
+     */
 
-    TestPawnCheck();
+    TestMoveGeneration();
 
-    TestKnightCheck();
 
-    TestBishopCheck();
+    /*
+     * Test 2 :
+     * vérifie réellement que les générateurs
+     * ajoutent leurs coups à la même MoveList
+     * sans effacer les précédents.
+     */
 
-    TestRookCheck();
-
-    TestQueenCheck();
-
-    TestKingCheck();
-
-    TestFriendlyBlock();
-
-    TestEnemyBlock();
-
-    TestRealPosition();
+    TestMoveListAccumulation();
 
 
     printf("\n");
-    printf("============================================================\n");
-    printf("                    RESULTATS\n");
-    printf("============================================================\n");
+    printf("========================================\n");
+    printf("             TESTS TERMINES\n");
+    printf("========================================\n\n");
 
-    printf("\nTests reussis : %d\n", testsPassed);
-    printf("Tests echoues : %d\n", testsFailed);
-    printf("Total         : %d\n",
-           testsPassed + testsFailed);
-
-
-    if (testsFailed == 0)
-    {
-        printf("\n>>> TOUS LES TESTS PASSENT <<<\n");
-        return 0;
-    }
-
-    printf("\n>>> DES TESTS ONT ECHOUE <<<\n");
-    return 1;
+    return 0;
 }

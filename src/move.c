@@ -1,6 +1,16 @@
 #include <stdio.h>
 #include "move.h"
 
+void AddMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol)
+{
+    moveList->moves[moveList->count].fromRow = fromRow;
+    moveList->moves[moveList->count].fromCol = fromCol;
+    moveList->moves[moveList->count].toRow = toRow;
+    moveList->moves[moveList->count].toCol = toCol;
+
+    moveList->count++;
+}
+
 void MakeMove(Position *position, Move move)
 {
     position->board[move.toRow][move.toCol] = position->board[move.fromRow][move.fromCol]; //case maintenant = case avant
@@ -16,7 +26,7 @@ void MakeMove(Position *position, Move move)
 
 void GeneratePawnMoves(Position *position, MoveList *moveList)
 {
-    moveList->count = 0;
+    
     if(position->sideToMove == 0) // Blancs
     {
         for (int i = 0; i < 8; i++)
@@ -27,38 +37,22 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
                 {
                      if (i > 0 && position->board[i - 1][j] == '.')  // 1 case
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = i - 1;
-                        moveList->moves[moveList->count].toCol = j;
-                        moveList->count++;
+                        AddMove(moveList, i, j, i - 1, j);
                         if (i == 6 && position->board[i - 2][j] == '.') // 2 cases
                         {
-                            moveList->moves[moveList->count].fromRow = i;
-                            moveList->moves[moveList->count].fromCol = j;
-                            moveList->moves[moveList->count].toRow = i - 2;
-                            moveList->moves[moveList->count].toCol = j;
-                            moveList->count++;
+                            AddMove(moveList, i, j, i - 2, j);
                         }
                     }
                     // manger à droite
                     if (i > 0 && j < 7 && IsBlackPiece(position->board[i - 1][j + 1]))
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = i - 1;
-                        moveList->moves[moveList->count].toCol = j + 1;
-                        moveList->count++;
+                        AddMove(moveList, i, j, i - 1, j+1);
                     }
 
                     // manger à gauche
                     if (i > 0 && j > 0 && IsBlackPiece(position->board[i - 1][j - 1]))
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = i - 1;
-                        moveList->moves[moveList->count].toCol = j - 1;
-                        moveList->count++;
+                        AddMove(moveList, i, j, i - 1, j-1);
                     }
                 }
         
@@ -75,39 +69,23 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
                 {
                     if (i < 7 && position->board[i + 1][j] == '.') //1 case
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = i + 1;
-                        moveList->moves[moveList->count].toCol = j;
-                        moveList->count++;
+                        AddMove(moveList, i, j, i + 1 , j);
                         
                         if (i == 1 && position->board[i + 2][j] == '.') //2 cases
                         {
-                            moveList->moves[moveList->count].fromRow = i;
-                            moveList->moves[moveList->count].fromCol = j;
-                            moveList->moves[moveList->count].toRow = i + 2;
-                            moveList->moves[moveList->count].toCol = j;
-                            moveList->count++;
+                            AddMove(moveList, i, j, i + 2, j);
                         }
                     }
                     // manger à gauche
                     if (i < 7 && j < 7 && IsWhitePiece(position->board[i + 1][j + 1]))
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = i + 1;
-                        moveList->moves[moveList->count].toCol = j + 1;
-                        moveList->count++;
+                        AddMove(moveList, i, j, i + 1, j + 1);
                     }
 
                     // manger à droite
                     if (i < 7 && j > 0 && IsWhitePiece(position->board[i + 1][j - 1]))
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = i + 1;
-                        moveList->moves[moveList->count].toCol = j - 1;
-                        moveList->count++;
+                        AddMove(moveList, i, j, i + 1, j - 1);
                     }
                     
                 }
@@ -131,7 +109,6 @@ void GenerateKnightMoves(Position *position, MoveList *moveList)
         {+2, +1}
     };
 
-    moveList->count = 0;
 
     for (int i = 0; i < 8; i++)
     {
@@ -169,12 +146,7 @@ void GenerateKnightMoves(Position *position, MoveList *moveList)
                     continue;
 
                 // Le déplacement est valide
-                moveList->moves[moveList->count].fromRow = i;
-                moveList->moves[moveList->count].fromCol = j;
-                moveList->moves[moveList->count].toRow = newRow;
-                moveList->moves[moveList->count].toCol = newCol;
-
-                moveList->count++;
+                AddMove(moveList, i, j, newRow, newCol);
             }
         }
     }
@@ -190,7 +162,6 @@ void GenerateBishopMoves(Position *position, MoveList *moveList)
         {+1, +1}
     };
 
-    moveList->count = 0;
 
     for (int i = 0; i < 8; i++)
     {
@@ -219,12 +190,7 @@ void GenerateBishopMoves(Position *position, MoveList *moveList)
                     // Case vide : déplacement possible
                     if (target == '.')
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = newRow;
-                        moveList->moves[moveList->count].toCol = newCol;
-
-                        moveList->count++;
+                        AddMove(moveList, i, j, newRow, newCol);
                     }
                     else
                     {
@@ -236,12 +202,7 @@ void GenerateBishopMoves(Position *position, MoveList *moveList)
                             break;
 
                         // mange adversaire
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = newRow;
-                        moveList->moves[moveList->count].toCol = newCol;
-
-                        moveList->count++;
+                        AddMove(moveList, i, j, newRow, newCol);
 
                         // stop apres rencontre
                         break;
@@ -265,7 +226,6 @@ void GenerateRookMoves(Position *position, MoveList *moveList)
         {0, +1}
     };
 
-    moveList->count = 0;
 
     for (int i = 0; i < 8; i++)
     {
@@ -291,12 +251,7 @@ void GenerateRookMoves(Position *position, MoveList *moveList)
 
                     if (target == '.')
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = newRow;
-                        moveList->moves[moveList->count].toCol = newCol;
-
-                        moveList->count++;
+                        AddMove(moveList, i, j, newRow, newCol);
                     }
                     else
                     {
@@ -307,13 +262,7 @@ void GenerateRookMoves(Position *position, MoveList *moveList)
                             break;
 
                         // Capture
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = newRow;
-                        moveList->moves[moveList->count].toCol = newCol;
-
-                        moveList->count++;
-
+                        AddMove(moveList, i, j, newRow, newCol);
                         break;
                     }
 
@@ -339,7 +288,6 @@ void GenerateQueenMoves(Position *position, MoveList *moveList)
         {+1, +1}
     };
 
-    moveList->count = 0;
 
     for (int i = 0; i < 8; i++)
     {
@@ -365,12 +313,7 @@ void GenerateQueenMoves(Position *position, MoveList *moveList)
 
                     if (target == '.')
                     {
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = newRow;
-                        moveList->moves[moveList->count].toCol = newCol;
-
-                        moveList->count++;
+                        AddMove(moveList, i, j, newRow, newCol);
                     }
                     else
                     {
@@ -381,12 +324,7 @@ void GenerateQueenMoves(Position *position, MoveList *moveList)
                             break;
 
                         // Capture
-                        moveList->moves[moveList->count].fromRow = i;
-                        moveList->moves[moveList->count].fromCol = j;
-                        moveList->moves[moveList->count].toRow = newRow;
-                        moveList->moves[moveList->count].toCol = newCol;
-
-                        moveList->count++;
+                        AddMove(moveList, i, j, newRow, newCol);
 
                         break;
                     }
@@ -413,7 +351,6 @@ void GenerateKingMoves(Position *position, MoveList *moveList)
         {+1, +1}
     };
 
-    moveList->count = 0;
 
     for (int i = 0; i < 8; i++)
     {
@@ -447,12 +384,7 @@ void GenerateKingMoves(Position *position, MoveList *moveList)
                 if (position->sideToMove == 1 && IsBlackPiece(target))
                     continue;
 
-                moveList->moves[moveList->count].fromRow = i;
-                moveList->moves[moveList->count].fromCol = j;
-                moveList->moves[moveList->count].toRow = newRow;
-                moveList->moves[moveList->count].toCol = newCol;
-
-                moveList->count++;
+                AddMove(moveList, i, j, newRow, newCol);
             }
         }
     }
@@ -683,4 +615,9 @@ int IsInCheck(Position *position, int side)
      * contenir le roi.
      */
     return 0;
+}
+
+void CopyPosition(Position *source, Position *destination)
+{
+    *destination = *source;
 }
