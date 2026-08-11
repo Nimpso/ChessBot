@@ -9,5 +9,7 @@ typedef struct
 
 void InitBoard(Position *position);
 void PrintBoard(Position *position);
+int IsWhitePiece(char piece);
+int IsBlackPiece(char piece);
 
 #endif

@@ -41,6 +41,25 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
                             moveList->count++;
                         }
                     }
+                    // manger à droite
+                    if (i > 0 && j < 7 && IsBlackPiece(position->board[i - 1][j + 1]))
+                    {
+                        moveList->moves[moveList->count].fromRow = i;
+                        moveList->moves[moveList->count].fromCol = j;
+                        moveList->moves[moveList->count].toRow = i - 1;
+                        moveList->moves[moveList->count].toCol = j + 1;
+                        moveList->count++;
+                    }
+
+                    // manger à gauche
+                    if (i > 0 && j > 0 && IsBlackPiece(position->board[i - 1][j - 1]))
+                    {
+                        moveList->moves[moveList->count].fromRow = i;
+                        moveList->moves[moveList->count].fromCol = j;
+                        moveList->moves[moveList->count].toRow = i - 1;
+                        moveList->moves[moveList->count].toCol = j - 1;
+                        moveList->count++;
+                    }
                 }
         
             }
@@ -70,6 +89,25 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
                             moveList->moves[moveList->count].toCol = j;
                             moveList->count++;
                         }
+                    }
+                    // manger à gauche
+                    if (i < 7 && j < 7 && IsWhitePiece(position->board[i + 1][j + 1]))
+                    {
+                        moveList->moves[moveList->count].fromRow = i;
+                        moveList->moves[moveList->count].fromCol = j;
+                        moveList->moves[moveList->count].toRow = i + 1;
+                        moveList->moves[moveList->count].toCol = j + 1;
+                        moveList->count++;
+                    }
+
+                    // manger à droite
+                    if (i < 7 && j > 0 && IsWhitePiece(position->board[i + 1][j - 1]))
+                    {
+                        moveList->moves[moveList->count].fromRow = i;
+                        moveList->moves[moveList->count].fromCol = j;
+                        moveList->moves[moveList->count].toRow = i + 1;
+                        moveList->moves[moveList->count].toCol = j - 1;
+                        moveList->count++;
                     }
                     
                 }

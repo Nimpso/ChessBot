@@ -58,3 +58,13 @@ void PrintBoard(Position *position)
 
     printf("  a b c d e f g h\n");
 }
+
+int IsWhitePiece(char piece)
+{
+    return piece >= 'A' && piece <= 'Z';
+}
+
+int IsBlackPiece(char piece)
+{
+    return piece >= 'a' && piece <= 'z';
+}
