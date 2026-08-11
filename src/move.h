@@ -20,5 +20,10 @@ typedef struct
 void MakeMove(Position *position, Move move);
 void GeneratePawnMoves(Position *position, MoveList *moveList);
 void GenerateKnightMoves(Position *position, MoveList *moveList);
+void GenerateBishopMoves(Position *position, MoveList *moveList);
+void GenerateRookMoves(Position *position, MoveList *moveList);
+void GenerateQueenMoves(Position *position, MoveList *moveList);
+void GenerateKingMoves(Position *position, MoveList *moveList);
+int IsSquareAttacked(Position *position, int row, int col, int bySide);
 
 #endif
