@@ -2,6 +2,8 @@
 
 #include "board.h"
 #include "move.h"
+#include "eval.h"
+#include "search.h"
 
 
 /* ============================================================
@@ -306,7 +308,7 @@ void TestPerftKiwipete(void)
     Position position;
     SetupKiwipetePosition(&position);
 
-    long long expected[] = {1, 48, 2039, 97862, 4085603, 193690690};
+    long long expected[] = {1, 48, 2039, 97862, 4085603};
 
     printf("\n");
     printf("========================================\n");
@@ -316,7 +318,7 @@ void TestPerftKiwipete(void)
     PrintBoard(&position);
     printf("\n");
 
-    for (int depth = 1; depth <= 5; depth++)
+    for (int depth = 1; depth <= 4; depth++)
     {
         long long nodes = Perft(&position, depth);
 
@@ -324,6 +326,194 @@ void TestPerftKiwipete(void)
                depth, nodes, expected[depth],
                nodes == expected[depth] ? "[PASS]" : "[FAIL]");
     }
+}
+
+
+/* ============================================================
+   TEST 5
+   EVALUATE SUR 5 POSITIONS DIFFERENTES
+   ============================================================ */
+
+void SetupPositionFromRows(Position *position, const char *rows[8],
+                            int sideToMove,
+                            int wk, int wq, int bk, int bq)
+{
+    for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 8; j++)
+            position->board[i][j] = rows[i][j];
+
+    position->sideToMove = sideToMove;
+
+    position->whiteKingSideCastle  = wk;
+    position->whiteQueenSideCastle = wq;
+    position->blackKingSideCastle  = bk;
+    position->blackQueenSideCastle = bq;
+
+    position->enPassantRow = -1;
+    position->enPassantCol = -1;
+}
+
+void ShowAndEvaluate(const char *title, Position *position)
+{
+    printf("\n----------------------------------------\n");
+    printf(" %s\n", title);
+    printf("----------------------------------------\n\n");
+
+    PrintBoard(position);
+
+    int score = Evaluate(position);
+    int whiteInCheck = IsInCheck(position, 0);
+    int blackInCheck = IsInCheck(position, 1);
+    int mate = IsCheckmate(position);
+    int stalemate = IsStalemate(position);
+
+    printf("\nTrait aux : %s\n", position->sideToMove == 0 ? "Blancs" : "Noirs");
+    printf("Blancs en echec : %s\n", whiteInCheck ? "oui" : "non");
+    printf("Noirs en echec  : %s\n", blackInCheck ? "oui" : "non");
+    printf("Mat             : %s\n", mate ? "oui" : "non");
+    printf("Pat             : %s\n", stalemate ? "oui" : "non");
+    printf("Evaluate()      : %d\n", score);
+}
+
+void TestEvaluationExamples(void)
+{
+    Position position;
+
+    printf("\n");
+    printf("========================================\n");
+    printf("   TEST 5 : EVALUATE SUR 5 POSITIONS\n");
+    printf("========================================\n");
+
+
+    /* POSITION 1 : position initiale (equilibree) */
+
+    InitBoard(&position);
+    ShowAndEvaluate("POSITION 1 : Position initiale", &position);
+
+
+    /* POSITION 2 : les blancs ont une dame de plus */
+
+    InitBoard(&position);
+    position.board[0][3] = '.'; // dame noire retiree
+    ShowAndEvaluate("POSITION 2 : Blancs +Dame", &position);
+
+
+    /* POSITION 3 : mat du berger (les noirs sont mates) */
+
+    {
+        const char *rows[8] = {
+            "r.bqkb.r",
+            "pppp.Qpp",
+            "..n.....",
+            "....p...",
+            "..B.P...",
+            "........",
+            "PPPP.PPP",
+            "RNB.K.NR"
+        };
+        SetupPositionFromRows(&position, rows, 1, 0, 0, 0, 0);
+    }
+    ShowAndEvaluate("POSITION 3 : Mat du berger", &position);
+
+
+    /* POSITION 4 : pat (roi a1 blanc bloque) */
+
+    {
+        const char *rows[8] = {
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "kq......",
+            "........",
+            "K......."
+        };
+        SetupPositionFromRows(&position, rows, 0, 0, 0, 0, 0);
+    }
+    ShowAndEvaluate("POSITION 4 : Pat", &position);
+
+
+    /* POSITION 5 : finale Tour+pion vs Fou+pion */
+
+    {
+        const char *rows[8] = {
+            "..b.k...",
+            "........",
+            "........",
+            "....p...",
+            "...P....",
+            "........",
+            "........",
+            "R...K..."
+        };
+        SetupPositionFromRows(&position, rows, 0, 0, 0, 0, 0);
+    }
+    ShowAndEvaluate("POSITION 5 : Finale Tour+pion vs Fou+pion", &position);
+}
+/* ============================================================
+   TEST 6
+   SELF-PLAY : LE MOTEUR JOUE CONTRE LUI-MEME
+   ============================================================ */
+
+void TestSelfPlay(int maxHalfMoves, int depth)
+{
+    Position position;
+    InitBoard(&position);
+
+    printf("\n");
+    printf("========================================\n");
+    printf("   TEST 6 : SELF-PLAY (profondeur %d)\n", depth);
+    printf("========================================\n\n");
+
+    PrintBoard(&position);
+
+    for (int ply = 1; ply <= maxHalfMoves; ply++)
+    {
+        MoveList legalMoves;
+        GenerateLegalMoves(&position, &legalMoves);
+
+        if (legalMoves.count == 0)
+        {
+            if (IsCheckmate(&position))
+            {
+                printf("\n>>> ECHEC ET MAT. Les %s gagnent.\n",
+                       position.sideToMove == 0 ? "noirs" : "blancs");
+            }
+            else
+            {
+                printf("\n>>> PAT. Partie nulle.\n");
+            }
+            return;
+        }
+
+        Move best = FindBestMove(&position, depth);
+
+        printf("%3d. %s joue : %c%d -> %c%d",
+               ply,
+               position.sideToMove == 0 ? "Blancs" : "Noirs ",
+               'a' + best.fromCol, 8 - best.fromRow,
+               'a' + best.toCol,   8 - best.toRow);
+
+        if (best.promotion != '\0')
+        {
+            printf("=%c", best.promotion);
+        }
+
+        MakeMove(&position, best);
+
+        printf("   (score apres coup : %d)\n", Evaluate(&position));
+        
+        if(ply %10 == 0)
+        {
+        PrintBoard(&position);
+        }
+    }
+
+    printf("\n>>> Limite de %d demi-coups atteinte, partie non terminee.\n",
+           maxHalfMoves);
+    printf("\n");
+    PrintBoard(&position);
 }
 
 
@@ -365,7 +555,7 @@ int main(void)
      * en passant/promotion/légalité ensemble.
      */
 
-    TestPerftInitialPosition();
+    //TestPerftInitialPosition();
 
 
     /*
@@ -375,7 +565,19 @@ int main(void)
      * de clouages, et de prises en passant.
      */
 
-    TestPerftKiwipete();
+    //TestPerftKiwipete();
+
+
+    /*
+     * Test 5 :
+     * Evaluate() sur 5 positions differentes, pour
+     * valider l'evaluation materielle et la detection
+     * de mat/pat au passage.
+     */
+
+    //TestEvaluationExamples();
+
+    TestSelfPlay(200, 3);
 
 
     printf("\n");

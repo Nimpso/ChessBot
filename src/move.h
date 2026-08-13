@@ -41,6 +41,7 @@ void GenerateCastlingMoves(Position *position, MoveList *moveList);
 void GenerateLegalMoves(Position *position, MoveList *legalMoves);
 void GeneratePseudoLegalMoves(Position *position, MoveList *moveList);
 long long Perft(Position *position, int depth);
-
+int IsCheckmate(Position *position);
+int IsStalemate(Position *position);
 
 #endif

@@ -945,3 +945,27 @@ long long Perft(Position *position, int depth)
 
     return nodes;
 }
+
+int IsCheckmate(Position *position)
+{
+    MoveList legalMoves;
+    GenerateLegalMoves(position, &legalMoves);
+ 
+    /*
+     * Échec et mat = aucun coup légal disponible,
+     * ET le joueur au trait est actuellement en échec.
+     */
+    return (legalMoves.count == 0) && IsInCheck(position, position->sideToMove);
+}
+ 
+int IsStalemate(Position *position)
+{
+    MoveList legalMoves;
+    GenerateLegalMoves(position, &legalMoves);
+ 
+    /*
+     * Pat = aucun coup légal disponible,
+     * MAIS le joueur au trait n'est PAS en échec.
+     */
+    return (legalMoves.count == 0) && !IsInCheck(position, position->sideToMove);
+}
