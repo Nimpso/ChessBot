@@ -228,35 +228,13 @@ void TestMoveListAccumulation(void)
 
 int main(void)
 {
-    printf("\n");
-    printf("========================================\n");
-    printf("          CHESSBOT - TESTS\n");
-    printf("========================================\n");
+    Position position;
+    InitBoard(&position);
 
-
-    /*
-     * Test 1 :
-     * vérifie que les générateurs peuvent
-     * s'enchaîner sur la position initiale.
-     */
-
-    TestMoveGeneration();
-
-
-    /*
-     * Test 2 :
-     * vérifie réellement que les générateurs
-     * ajoutent leurs coups à la même MoveList
-     * sans effacer les précédents.
-     */
-
-    TestMoveListAccumulation();
-
-
-    printf("\n");
-    printf("========================================\n");
-    printf("             TESTS TERMINES\n");
-    printf("========================================\n\n");
-
+    for (int depth = 1; depth <= 5; depth++)
+    {
+        printf("Perft(%d) = %lld\n", depth, Perft(&position, depth));
+    }
+  
     return 0;
 }

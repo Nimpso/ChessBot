@@ -17,11 +17,11 @@ void MakeMove(Position *position, Move move)
     position->board[move.fromRow][move.fromCol] = '.'; //case avant = '.'
     position->sideToMove = (position->sideToMove == 0) ? 1 : 0;
 
-    printf("%c%d -> %c%d\n",
+    /*printf("%c%d -> %c%d\n",
     'a' + move.fromCol,
     8 - move.fromRow,
     'a' + move.toCol,
-    8 - move.toRow);
+    8 - move.toRow);*/
 }
 
 void GeneratePawnMoves(Position *position, MoveList *moveList)
@@ -632,4 +632,57 @@ void GeneratePseudoLegalMoves(Position *position, MoveList *moveList)
     GenerateRookMoves(position, moveList);
     GenerateQueenMoves(position, moveList);
     GenerateKingMoves(position, moveList);
+}
+
+void GenerateLegalMoves(Position *position, MoveList *legalMoves)
+{
+    MoveList pseudoMoves;
+    Position copy;
+
+    int mover = position->sideToMove;
+
+    legalMoves->count = 0;
+
+    GeneratePseudoLegalMoves(position, &pseudoMoves);
+
+    for (int i = 0; i < pseudoMoves.count; i++)
+    {
+        CopyPosition(position, &copy);
+
+        MakeMove(&copy, pseudoMoves.moves[i]);
+
+        /*
+         * Un coup est légal seulement si, après l'avoir joué,
+         * notre propre roi n'est pas en échec.
+         */
+        if (!IsInCheck(&copy, mover))
+        {
+            legalMoves->moves[legalMoves->count] = pseudoMoves.moves[i];
+            legalMoves->count++;
+        }
+    }
+}
+
+long long Perft(Position *position, int depth)
+{
+    if (depth == 0)
+        return 1;
+
+    MoveList legalMoves;
+    GenerateLegalMoves(position, &legalMoves);
+
+    if (depth == 1)
+        return legalMoves.count;
+
+    long long nodes = 0;
+    Position copy;
+
+    for (int i = 0; i < legalMoves.count; i++)
+    {
+        CopyPosition(position, &copy);
+        MakeMove(&copy, legalMoves.moves[i]);
+        nodes += Perft(&copy, depth - 1);
+    }
+
+    return nodes;
 }

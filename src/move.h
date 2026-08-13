@@ -27,8 +27,10 @@ void GenerateKingMoves(Position *position, MoveList *moveList);
 int IsSquareAttacked(Position *position, int row, int col, int bySide);
 int IsInCheck(Position *position, int side);
 void AddMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol);
+void CopyPosition(Position *source, Position *destination);
 void GenerateLegalMoves(Position *position, MoveList *legalMoves);
 void GeneratePseudoLegalMoves(Position *position, MoveList *moveList);
+long long Perft(Position *position, int depth);
 
 
 #endif
