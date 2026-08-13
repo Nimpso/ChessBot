@@ -10,6 +10,14 @@ typedef struct
     int whiteQueenSideCastle;
     int blackKingSideCastle;
     int blackQueenSideCastle;
+
+    
+    //-1 si aucune prise en passant n'est possible ce coup-ci.
+    //Sinon, c'est la case "sautée" par un pion qui vient
+    //d'avancer de 2 cases (la case que le pion adverse peut viser pour capturer en passant)
+    
+    int enPassantRow;
+    int enPassantCol;
 } Position;
 
 void InitBoard(Position *position);

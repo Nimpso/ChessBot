@@ -7,14 +7,129 @@ void AddMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol)
     moveList->moves[moveList->count].fromCol = fromCol;
     moveList->moves[moveList->count].toRow = toRow;
     moveList->moves[moveList->count].toCol = toCol;
+    moveList->moves[moveList->count].promotion = '\0';
+    moveList->moves[moveList->count].enPassant = 0;
+
+    moveList->count++;
+}
+
+void AddPromotionMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol, char promotion)
+{
+    moveList->moves[moveList->count].fromRow = fromRow;
+    moveList->moves[moveList->count].fromCol = fromCol;
+    moveList->moves[moveList->count].toRow = toRow;
+    moveList->moves[moveList->count].toCol = toCol;
+    moveList->moves[moveList->count].promotion = promotion;
+    moveList->moves[moveList->count].enPassant = 0;
+
+    moveList->count++;
+}
+
+void AddEnPassantMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol)
+{
+    moveList->moves[moveList->count].fromRow = fromRow;
+    moveList->moves[moveList->count].fromCol = fromCol;
+    moveList->moves[moveList->count].toRow = toRow;
+    moveList->moves[moveList->count].toCol = toCol;
+    moveList->moves[moveList->count].promotion = '\0';
+    moveList->moves[moveList->count].enPassant = 1;
 
     moveList->count++;
 }
 
 void MakeMove(Position *position, Move move)
 {
-    position->board[move.toRow][move.toCol] = position->board[move.fromRow][move.fromCol]; //case maintenant = case avant
+    char movingPiece = position->board[move.fromRow][move.fromCol];
+
+    /*
+     * Capture en passant : la pièce prise n'est pas sur la case
+     * d'arrivée mais sur la même rangée que le pion qui capture.
+     */
+    if (move.enPassant)
+    {
+        position->board[move.fromRow][move.toCol] = '.';
+    }
+
+    if (move.promotion != '\0')
+    {
+        position->board[move.toRow][move.toCol] = move.promotion;
+    }
+    else
+    {
+        position->board[move.toRow][move.toCol] = movingPiece; //case maintenant = case avant
+    }
+
     position->board[move.fromRow][move.fromCol] = '.'; //case avant = '.'
+
+    /*
+     * Roque : le roi vient de bouger de 2 cases, il faut
+     * déplacer la tour concernée en miroir.
+     */
+    if (movingPiece == 'K' && move.fromCol == 4 && move.toCol == 6) // petit roque blanc
+    {
+        position->board[7][5] = position->board[7][7];
+        position->board[7][7] = '.';
+    }
+    else if (movingPiece == 'K' && move.fromCol == 4 && move.toCol == 2) // grand roque blanc
+    {
+        position->board[7][3] = position->board[7][0];
+        position->board[7][0] = '.';
+    }
+    else if (movingPiece == 'k' && move.fromCol == 4 && move.toCol == 6) // petit roque noir
+    {
+        position->board[0][5] = position->board[0][7];
+        position->board[0][7] = '.';
+    }
+    else if (movingPiece == 'k' && move.fromCol == 4 && move.toCol == 2) // grand roque noir
+    {
+        position->board[0][3] = position->board[0][0];
+        position->board[0][0] = '.';
+    }
+
+    /*
+     * Mise à jour des droits de roque.
+     * Le roi qui bouge perd ses deux droits.
+     */
+    if (movingPiece == 'K')
+    {
+        position->whiteKingSideCastle = 0;
+        position->whiteQueenSideCastle = 0;
+    }
+    else if (movingPiece == 'k')
+    {
+        position->blackKingSideCastle = 0;
+        position->blackQueenSideCastle = 0;
+    }
+
+    /*
+     * Une tour qui bouge, ou qui se fait capturer,
+     * perd son droit de roque associé.
+     */
+    if (move.fromRow == 7 && move.fromCol == 0) position->whiteQueenSideCastle = 0;
+    if (move.fromRow == 7 && move.fromCol == 7) position->whiteKingSideCastle  = 0;
+    if (move.fromRow == 0 && move.fromCol == 0) position->blackQueenSideCastle = 0;
+    if (move.fromRow == 0 && move.fromCol == 7) position->blackKingSideCastle  = 0;
+
+    if (move.toRow == 7 && move.toCol == 0) position->whiteQueenSideCastle = 0;
+    if (move.toRow == 7 && move.toCol == 7) position->whiteKingSideCastle  = 0;
+    if (move.toRow == 0 && move.toCol == 0) position->blackQueenSideCastle = 0;
+    if (move.toRow == 0 && move.toCol == 7) position->blackKingSideCastle  = 0;
+
+    /*
+     * La case en passant ne vit qu'un seul demi-coup :
+     * on la réinitialise puis on la recalcule si ce coup
+     * est une avance de pion de 2 cases.
+     */
+    position->enPassantRow = -1;
+    position->enPassantCol = -1;
+
+    if ((movingPiece == 'P' || movingPiece == 'p') &&
+        (move.toRow - move.fromRow == 2 || move.fromRow - move.toRow == 2))
+    {
+        position->enPassantRow = (move.fromRow + move.toRow) / 2;
+        position->enPassantCol = move.fromCol;
+    }
+
     position->sideToMove = (position->sideToMove == 0) ? 1 : 0;
 
     /*printf("%c%d -> %c%d\n",
@@ -35,10 +150,24 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
             {
                 if(position->board[i][j] == 'P')
                 {
+                    // La rangée 0 (rang 8) est la rangée de promotion pour les blancs
+                    int isPromotionRank = (i - 1 == 0);
+
                      if (i > 0 && position->board[i - 1][j] == '.')  // 1 case
                     {
-                        AddMove(moveList, i, j, i - 1, j);
-                        if (i == 6 && position->board[i - 2][j] == '.') // 2 cases
+                        if (isPromotionRank)
+                        {
+                            AddPromotionMove(moveList, i, j, i - 1, j, 'Q');
+                            AddPromotionMove(moveList, i, j, i - 1, j, 'R');
+                            AddPromotionMove(moveList, i, j, i - 1, j, 'B');
+                            AddPromotionMove(moveList, i, j, i - 1, j, 'N');
+                        }
+                        else
+                        {
+                            AddMove(moveList, i, j, i - 1, j);
+                        }
+
+                        if (i == 6 && position->board[i - 2][j] == '.') // 2 cases (jamais de promotion)
                         {
                             AddMove(moveList, i, j, i - 2, j);
                         }
@@ -46,13 +175,40 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
                     // manger à droite
                     if (i > 0 && j < 7 && IsBlackPiece(position->board[i - 1][j + 1]))
                     {
-                        AddMove(moveList, i, j, i - 1, j+1);
+                        if (isPromotionRank)
+                        {
+                            AddPromotionMove(moveList, i, j, i - 1, j + 1, 'Q');
+                            AddPromotionMove(moveList, i, j, i - 1, j + 1, 'R');
+                            AddPromotionMove(moveList, i, j, i - 1, j + 1, 'B');
+                            AddPromotionMove(moveList, i, j, i - 1, j + 1, 'N');
+                        }
+                        else
+                        {
+                            AddMove(moveList, i, j, i - 1, j+1);
+                        }
                     }
 
                     // manger à gauche
                     if (i > 0 && j > 0 && IsBlackPiece(position->board[i - 1][j - 1]))
                     {
-                        AddMove(moveList, i, j, i - 1, j-1);
+                        if (isPromotionRank)
+                        {
+                            AddPromotionMove(moveList, i, j, i - 1, j - 1, 'Q');
+                            AddPromotionMove(moveList, i, j, i - 1, j - 1, 'R');
+                            AddPromotionMove(moveList, i, j, i - 1, j - 1, 'B');
+                            AddPromotionMove(moveList, i, j, i - 1, j - 1, 'N');
+                        }
+                        else
+                        {
+                            AddMove(moveList, i, j, i - 1, j-1);
+                        }
+                    }
+
+                    // prise en passant
+                    if (i > 0 && position->enPassantRow == i - 1 &&
+                        (position->enPassantCol == j - 1 || position->enPassantCol == j + 1))
+                    {
+                        AddEnPassantMove(moveList, i, j, i - 1, position->enPassantCol);
                     }
                 }
         
@@ -67,11 +223,24 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
             {
                 if(position->board[i][j] == 'p')
                 {
+                    // La rangée 7 (rang 1) est la rangée de promotion pour les noirs
+                    int isPromotionRank = (i + 1 == 7);
+
                     if (i < 7 && position->board[i + 1][j] == '.') //1 case
                     {
-                        AddMove(moveList, i, j, i + 1 , j);
+                        if (isPromotionRank)
+                        {
+                            AddPromotionMove(moveList, i, j, i + 1, j, 'q');
+                            AddPromotionMove(moveList, i, j, i + 1, j, 'r');
+                            AddPromotionMove(moveList, i, j, i + 1, j, 'b');
+                            AddPromotionMove(moveList, i, j, i + 1, j, 'n');
+                        }
+                        else
+                        {
+                            AddMove(moveList, i, j, i + 1 , j);
+                        }
                         
-                        if (i == 1 && position->board[i + 2][j] == '.') //2 cases
+                        if (i == 1 && position->board[i + 2][j] == '.') //2 cases (jamais de promotion)
                         {
                             AddMove(moveList, i, j, i + 2, j);
                         }
@@ -79,13 +248,40 @@ void GeneratePawnMoves(Position *position, MoveList *moveList)
                     // manger à gauche
                     if (i < 7 && j < 7 && IsWhitePiece(position->board[i + 1][j + 1]))
                     {
-                        AddMove(moveList, i, j, i + 1, j + 1);
+                        if (isPromotionRank)
+                        {
+                            AddPromotionMove(moveList, i, j, i + 1, j + 1, 'q');
+                            AddPromotionMove(moveList, i, j, i + 1, j + 1, 'r');
+                            AddPromotionMove(moveList, i, j, i + 1, j + 1, 'b');
+                            AddPromotionMove(moveList, i, j, i + 1, j + 1, 'n');
+                        }
+                        else
+                        {
+                            AddMove(moveList, i, j, i + 1, j + 1);
+                        }
                     }
 
                     // manger à droite
                     if (i < 7 && j > 0 && IsWhitePiece(position->board[i + 1][j - 1]))
                     {
-                        AddMove(moveList, i, j, i + 1, j - 1);
+                        if (isPromotionRank)
+                        {
+                            AddPromotionMove(moveList, i, j, i + 1, j - 1, 'q');
+                            AddPromotionMove(moveList, i, j, i + 1, j - 1, 'r');
+                            AddPromotionMove(moveList, i, j, i + 1, j - 1, 'b');
+                            AddPromotionMove(moveList, i, j, i + 1, j - 1, 'n');
+                        }
+                        else
+                        {
+                            AddMove(moveList, i, j, i + 1, j - 1);
+                        }
+                    }
+
+                    // prise en passant
+                    if (i < 7 && position->enPassantRow == i + 1 &&
+                        (position->enPassantCol == j - 1 || position->enPassantCol == j + 1))
+                    {
+                        AddEnPassantMove(moveList, i, j, i + 1, position->enPassantCol);
                     }
                     
                 }
@@ -622,6 +818,68 @@ void CopyPosition(Position *source, Position *destination)
     *destination = *source;
 }
 
+void GenerateCastlingMoves(Position *position, MoveList *moveList)
+{
+    if (position->sideToMove == 0) // Blancs
+    {
+        // Petit roque (O-O) : e1 -> g1, tour h1 -> f1
+        if (position->whiteKingSideCastle &&
+            position->board[7][4] == 'K' &&
+            position->board[7][7] == 'R' &&
+            position->board[7][5] == '.' &&
+            position->board[7][6] == '.' &&
+            !IsSquareAttacked(position, 7, 4, 1) &&
+            !IsSquareAttacked(position, 7, 5, 1) &&
+            !IsSquareAttacked(position, 7, 6, 1))
+        {
+            AddMove(moveList, 7, 4, 7, 6);
+        }
+
+        // Grand roque (O-O-O) : e1 -> c1, tour a1 -> d1
+        if (position->whiteQueenSideCastle &&
+            position->board[7][4] == 'K' &&
+            position->board[7][0] == 'R' &&
+            position->board[7][1] == '.' &&
+            position->board[7][2] == '.' &&
+            position->board[7][3] == '.' &&
+            !IsSquareAttacked(position, 7, 4, 1) &&
+            !IsSquareAttacked(position, 7, 3, 1) &&
+            !IsSquareAttacked(position, 7, 2, 1))
+        {
+            AddMove(moveList, 7, 4, 7, 2);
+        }
+    }
+    else // Noirs
+    {
+        // Petit roque (O-O) : e8 -> g8, tour h8 -> f8
+        if (position->blackKingSideCastle &&
+            position->board[0][4] == 'k' &&
+            position->board[0][7] == 'r' &&
+            position->board[0][5] == '.' &&
+            position->board[0][6] == '.' &&
+            !IsSquareAttacked(position, 0, 4, 0) &&
+            !IsSquareAttacked(position, 0, 5, 0) &&
+            !IsSquareAttacked(position, 0, 6, 0))
+        {
+            AddMove(moveList, 0, 4, 0, 6);
+        }
+
+        // Grand roque (O-O-O) : e8 -> c8, tour a8 -> d8
+        if (position->blackQueenSideCastle &&
+            position->board[0][4] == 'k' &&
+            position->board[0][0] == 'r' &&
+            position->board[0][1] == '.' &&
+            position->board[0][2] == '.' &&
+            position->board[0][3] == '.' &&
+            !IsSquareAttacked(position, 0, 4, 0) &&
+            !IsSquareAttacked(position, 0, 3, 0) &&
+            !IsSquareAttacked(position, 0, 2, 0))
+        {
+            AddMove(moveList, 0, 4, 0, 2);
+        }
+    }
+}
+
 void GeneratePseudoLegalMoves(Position *position, MoveList *moveList)
 {
     moveList->count = 0;
@@ -632,6 +890,7 @@ void GeneratePseudoLegalMoves(Position *position, MoveList *moveList)
     GenerateRookMoves(position, moveList);
     GenerateQueenMoves(position, moveList);
     GenerateKingMoves(position, moveList);
+    GenerateCastlingMoves(position, moveList);
 }
 
 void GenerateLegalMoves(Position *position, MoveList *legalMoves)

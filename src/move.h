@@ -9,6 +9,13 @@ typedef struct
     int fromCol;
     int toRow;
     int toCol;
+
+//'\0' si ce n'est pas une promotion Sinon : 'Q', 'R', 'B', 'N' (blancs) ou 'q', 'r', 'b', 'n' (noirs).
+//On stocke directement le caractère avec la bonne casse
+    char promotion;
+
+    //1 si ce en passant, 0 sinon
+    int enPassant;
 } Move;
 
 typedef struct
@@ -26,8 +33,11 @@ void GenerateQueenMoves(Position *position, MoveList *moveList);
 void GenerateKingMoves(Position *position, MoveList *moveList);
 int IsSquareAttacked(Position *position, int row, int col, int bySide);
 int IsInCheck(Position *position, int side);
-void AddMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol);
 void CopyPosition(Position *source, Position *destination);
+void AddMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol);
+void AddPromotionMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol, char promotion);
+void AddEnPassantMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol);
+void GenerateCastlingMoves(Position *position, MoveList *moveList);
 void GenerateLegalMoves(Position *position, MoveList *legalMoves);
 void GeneratePseudoLegalMoves(Position *position, MoveList *moveList);
 long long Perft(Position *position, int depth);

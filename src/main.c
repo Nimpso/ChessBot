@@ -10,11 +10,18 @@
 
 void PrintMove(Move move)
 {
-    printf("%c%d -> %c%d\n",
+    printf("%c%d -> %c%d",
            'a' + move.fromCol,
            8 - move.fromRow,
            'a' + move.toCol,
            8 - move.toRow);
+
+    if (move.promotion != '\0')
+    {
+        printf("=%c", move.promotion);
+    }
+
+    printf("\n");
 }
 
 
@@ -223,18 +230,158 @@ void TestMoveListAccumulation(void)
 
 
 /* ============================================================
+   TEST 3
+   PERFT - POSITION INITIALE
+   ============================================================ */
+
+void TestPerftInitialPosition(void)
+{
+    Position position;
+    InitBoard(&position);
+
+    long long expected[] = {1, 20, 400, 8902, 197281, 4865609};
+
+    printf("\n");
+    printf("========================================\n");
+    printf("   TEST 3 : PERFT - POSITION INITIALE\n");
+    printf("========================================\n\n");
+
+    for (int depth = 1; depth <= 5; depth++)
+    {
+        long long nodes = Perft(&position, depth);
+
+        printf("Perft(%d) = %lld  (attendu : %lld)  %s\n",
+               depth, nodes, expected[depth],
+               nodes == expected[depth] ? "[PASS]" : "[FAIL]");
+    }
+}
+
+
+/* ============================================================
+   TEST 4
+   PERFT - POSITION "KIWIPETE"
+
+   Position de référence standard pour piéger les bugs de
+   roque à travers l'échec, de clouages, et de prises en
+   passant. FEN :
+   r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R
+   w KQkq - 0 1
+   ============================================================ */
+
+void SetupKiwipetePosition(Position *position)
+{
+    const char *rows[8] =
+    {
+        "r...k..r",
+        "p.ppqpb.",
+        "bn..pnp.",
+        "...PN...",
+        ".p..P...",
+        "..N..Q.p",
+        "PPPBBPPP",
+        "R...K..R"
+    };
+
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            position->board[i][j] = rows[i][j];
+        }
+    }
+
+    position->sideToMove = 0;
+
+    position->whiteKingSideCastle  = 1;
+    position->whiteQueenSideCastle = 1;
+    position->blackKingSideCastle  = 1;
+    position->blackQueenSideCastle = 1;
+
+    position->enPassantRow = -1;
+    position->enPassantCol = -1;
+}
+
+void TestPerftKiwipete(void)
+{
+    Position position;
+    SetupKiwipetePosition(&position);
+
+    long long expected[] = {1, 48, 2039, 97862, 4085603, 193690690};
+
+    printf("\n");
+    printf("========================================\n");
+    printf("      TEST 4 : PERFT - KIWIPETE\n");
+    printf("========================================\n\n");
+
+    PrintBoard(&position);
+    printf("\n");
+
+    for (int depth = 1; depth <= 5; depth++)
+    {
+        long long nodes = Perft(&position, depth);
+
+        printf("Perft(%d) = %lld  (attendu : %lld)  %s\n",
+               depth, nodes, expected[depth],
+               nodes == expected[depth] ? "[PASS]" : "[FAIL]");
+    }
+}
+
+
+/* ============================================================
    MAIN
    ============================================================ */
 
 int main(void)
 {
-    Position position;
-    InitBoard(&position);
+    printf("\n");
+    printf("========================================\n");
+    printf("          CHESSBOT - TESTS\n");
+    printf("========================================\n");
 
-    for (int depth = 1; depth <= 5; depth++)
-    {
-        printf("Perft(%d) = %lld\n", depth, Perft(&position, depth));
-    }
-  
+
+    /*
+     * Test 1 :
+     * vérifie que les générateurs peuvent
+     * s'enchaîner sur la position initiale.
+     */
+
+    //TestMoveGeneration();
+
+
+    /*
+     * Test 2 :
+     * vérifie réellement que les générateurs
+     * ajoutent leurs coups à la même MoveList
+     * sans effacer les précédents.
+     */
+
+    //TestMoveListAccumulation();
+
+
+    /*
+     * Test 3 :
+     * Perft sur la position initiale, jusqu'à
+     * profondeur 5. Valide pions/pièces/roque/
+     * en passant/promotion/légalité ensemble.
+     */
+
+    TestPerftInitialPosition();
+
+
+    /*
+     * Test 4 :
+     * Perft sur Kiwipete, la position de référence
+     * qui piège les bugs de roque à travers l'échec,
+     * de clouages, et de prises en passant.
+     */
+
+    TestPerftKiwipete();
+
+
+    printf("\n");
+    printf("========================================\n");
+    printf("             TESTS TERMINES\n");
+    printf("========================================\n\n");
+
     return 0;
 }
