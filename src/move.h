@@ -43,5 +43,6 @@ void GeneratePseudoLegalMoves(Position *position, MoveList *moveList);
 long long Perft(Position *position, int depth);
 int IsCheckmate(Position *position);
 int IsStalemate(Position *position);
+int IsFiftyMoveRule(Position *position);
 
 #endif

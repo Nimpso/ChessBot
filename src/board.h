@@ -18,6 +18,7 @@ typedef struct
     
     int enPassantRow;
     int enPassantCol;
+    int halfMoveClock;
 } Position;
 
 void InitBoard(Position *position);

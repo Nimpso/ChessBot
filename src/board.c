@@ -45,6 +45,11 @@ void InitBoard(Position *position)
     position->whiteQueenSideCastle = 1;
     position->blackKingSideCastle = 1;
     position->blackQueenSideCastle = 1;
+
+    position->enPassantRow = -1;
+    position->enPassantCol = -1;
+
+    position->halfMoveClock = 0;
 }
 
 void PrintBoard(Position *position)

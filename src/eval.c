@@ -1,7 +1,13 @@
 #include "eval.h"
 #include "move.h"
 
-
+/*
+ * Score utilisé pour un mat. Volontairement bien plus grand
+ * que n'importe quelle somme de matériel possible (le
+ * matériel total sur l'échiquier ne dépasse jamais ~9000
+ * centipions), pour que Minimax préfère TOUJOURS un mat à
+ * n'importe quel gain de matériel.
+ */
 #define MATE_SCORE 1000000
 
 int PieceValue(char piece)
@@ -19,10 +25,17 @@ int PieceValue(char piece)
 
 int Evaluate(Position *position)
 {
-
+    /*
+     * D'abord les cas terminaux : un mat ou un pat rendent
+     * le score matériel non pertinent.
+     */
     if (IsCheckmate(position))
     {
-
+        /*
+         * Le joueur AU TRAIT est maté (il ne peut plus jouer).
+         * Si c'est aux blancs de jouer, c'est donc une
+         * catastrophe pour les blancs : score très négatif.
+         */
         return (position->sideToMove == 0) ? -MATE_SCORE : MATE_SCORE;
     }
 
@@ -31,7 +44,16 @@ int Evaluate(Position *position)
         return 0; // Nulle
     }
 
-    // pour l instant tres simple on additionne juste les pieces
+    if (IsFiftyMoveRule(position))
+    {
+        return 0; // Nulle (50 coups sans capture ni coup de pion)
+    }
+
+    /*
+     * Évaluation matérielle simple : on additionne la valeur
+     * de chaque pièce, en positif pour les blancs, en négatif
+     * pour les noirs.
+     */
     int score = 0;
 
     for (int row = 0; row < 8; row++)

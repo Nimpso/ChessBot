@@ -42,6 +42,14 @@ void MakeMove(Position *position, Move move)
     char movingPiece = position->board[move.fromRow][move.fromCol];
 
     /*
+     * Il faut regarder AVANT de modifier le plateau :
+     * un coup de pion ou une capture remet le compteur
+     * des 50 coups a zero.
+     */
+    int isPawnMove = (movingPiece == 'P' || movingPiece == 'p');
+    int isCapture = (position->board[move.toRow][move.toCol] != '.') || move.enPassant;
+
+    /*
      * Capture en passant : la pièce prise n'est pas sur la case
      * d'arrivée mais sur la même rangée que le pion qui capture.
      */
@@ -128,6 +136,15 @@ void MakeMove(Position *position, Move move)
     {
         position->enPassantRow = (move.fromRow + move.toRow) / 2;
         position->enPassantCol = move.fromCol;
+    }
+
+    if (isPawnMove || isCapture)
+    {
+        position->halfMoveClock = 0;
+    }
+    else
+    {
+        position->halfMoveClock++;
     }
 
     position->sideToMove = (position->sideToMove == 0) ? 1 : 0;
@@ -950,22 +967,31 @@ int IsCheckmate(Position *position)
 {
     MoveList legalMoves;
     GenerateLegalMoves(position, &legalMoves);
- 
+
     /*
      * Échec et mat = aucun coup légal disponible,
      * ET le joueur au trait est actuellement en échec.
      */
     return (legalMoves.count == 0) && IsInCheck(position, position->sideToMove);
 }
- 
+
 int IsStalemate(Position *position)
 {
     MoveList legalMoves;
     GenerateLegalMoves(position, &legalMoves);
- 
+
     /*
      * Pat = aucun coup légal disponible,
      * MAIS le joueur au trait n'est PAS en échec.
      */
     return (legalMoves.count == 0) && !IsInCheck(position, position->sideToMove);
+}
+
+int IsFiftyMoveRule(Position *position)
+{
+    /*
+     * 50 coups par joueur sans capture ni coup de pion
+     * = 100 demi-coups.
+     */
+    return position->halfMoveClock >= 100;
 }

@@ -186,6 +186,10 @@ void TestMoveListAccumulation(void)
     position.blackKingSideCastle = 0;
     position.blackQueenSideCastle = 0;
 
+    position.enPassantRow = -1;
+    position.enPassantCol = -1;
+    position.halfMoveClock = 0;
+
 
     /* Pieces blanches */
 
@@ -301,6 +305,7 @@ void SetupKiwipetePosition(Position *position)
 
     position->enPassantRow = -1;
     position->enPassantCol = -1;
+    position->halfMoveClock = 0;
 }
 
 void TestPerftKiwipete(void)
@@ -351,6 +356,7 @@ void SetupPositionFromRows(Position *position, const char *rows[8],
 
     position->enPassantRow = -1;
     position->enPassantCol = -1;
+    position->halfMoveClock = 0;
 }
 
 void ShowAndEvaluate(const char *title, Position *position)
@@ -451,6 +457,8 @@ void TestEvaluationExamples(void)
     }
     ShowAndEvaluate("POSITION 5 : Finale Tour+pion vs Fou+pion", &position);
 }
+
+
 /* ============================================================
    TEST 6
    SELF-PLAY : LE MOTEUR JOUE CONTRE LUI-MEME
@@ -470,6 +478,12 @@ void TestSelfPlay(int maxHalfMoves, int depth)
 
     for (int ply = 1; ply <= maxHalfMoves; ply++)
     {
+        if (IsFiftyMoveRule(&position))
+        {
+            printf("\n>>> NULLE (regle des 50 coups sans capture ni coup de pion).\n");
+            return;
+        }
+
         MoveList legalMoves;
         GenerateLegalMoves(&position, &legalMoves);
 
@@ -503,11 +517,6 @@ void TestSelfPlay(int maxHalfMoves, int depth)
         MakeMove(&position, best);
 
         printf("   (score apres coup : %d)\n", Evaluate(&position));
-        
-        if(ply %10 == 0)
-        {
-        PrintBoard(&position);
-        }
     }
 
     printf("\n>>> Limite de %d demi-coups atteinte, partie non terminee.\n",
@@ -577,7 +586,15 @@ int main(void)
 
     //TestEvaluationExamples();
 
-    TestSelfPlay(200, 3);
+
+    /*
+     * Test 6 :
+     * le moteur joue contre lui-meme sur quelques coups,
+     * avec FindBestMove(). Profondeur 3 pour rester rapide
+     * (Minimax sans Alpha-Beta grossit vite).
+     */
+
+    TestSelfPlay(500, 3);
 
 
     printf("\n");
