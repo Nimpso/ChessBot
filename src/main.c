@@ -637,10 +637,10 @@ int main(void)
      * avec FindBestMove(). Profondeur 3 pour rester rapide
      * (Minimax sans Alpha-Beta grossit vite).
      */
-    //TestSelfPlay(500, 3);
+    TestSelfPlay(500, 3);
 
     // Test 7 : verifie que AlphaBeta donne le meme resultat que Minimax, en plus rapide
-    TestAlphaBetaComparison();
+    //TestAlphaBetaComparison();
 
 
 
