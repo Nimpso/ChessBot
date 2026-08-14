@@ -4,22 +4,22 @@
 #include "board.h"
 #include "move.h"
 
+#define INF 1000000
+
+extern long long nodes;
 /*
  * Explore l'arbre des coups jusqu'à "depth" demi-coups et
- * retourne le meilleur score atteignable (du point de vue
- * des BLANCS, comme Evaluate()).
- *
- * maximizingPlayer = 1 si c'est aux blancs de choisir
- * (ils veulent le score le PLUS GRAND),
- * 0 si c'est aux noirs de choisir
- * (ils veulent le score le PLUS PETIT).
+ * retourne le meilleur score atteignable pdv blancs
  */
 int Minimax(Position *position, int depth, int maximizingPlayer);
+// Comme Minimax, mais coupe les branches inutiles (meme resultat, plus rapide)
+int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizingPlayer);
 
 /*
  * Cherche le meilleur coup à jouer pour le joueur au trait
  * de "position", en explorant "depth" demi-coups avec Minimax.
  */
 Move FindBestMove(Position *position, int depth);
+
 
 #endif

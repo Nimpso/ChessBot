@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 
 #include "board.h"
 #include "move.h"
@@ -527,6 +528,49 @@ void TestSelfPlay(int maxHalfMoves, int depth)
 
 
 /* ============================================================
+   TEST 7
+   MINIMAX VS ALPHABETA
+   ============================================================ */
+
+void TestAlphaBetaComparison(void)
+{
+    Position position;
+    InitBoard(&position);
+
+    printf("\n");
+    printf("========================================\n");
+    printf("   TEST 7 : MINIMAX VS ALPHABETA\n");
+    printf("========================================\n\n");
+
+    for (int depth = 1; depth <= 4; depth++)
+    {
+        int minimaxScore = Minimax(&position, depth, 1);
+        int alphaBetaScore = AlphaBeta(&position, depth, -2000000000, 2000000000, 1);
+
+        printf("Profondeur %d : Minimax = %d, AlphaBeta = %d  %s\n",
+               depth, minimaxScore, alphaBetaScore,
+               minimaxScore == alphaBetaScore ? "[PASS]" : "[FAIL]");
+    }
+
+    printf("\n--- Temps d'execution ---\n\n");
+
+    for (int depth = 1; depth <= 5; depth++)
+    {
+        clock_t start = clock();
+        Minimax(&position, depth, 1);
+        double minimaxTime = (double)(clock() - start) / CLOCKS_PER_SEC;
+
+        start = clock();
+        AlphaBeta(&position, depth, -2000000000, 2000000000, 1);
+        double alphaBetaTime = (double)(clock() - start) / CLOCKS_PER_SEC;
+
+        printf("Profondeur %d : Minimax = %.3fs, AlphaBeta = %.3fs\n",
+               depth, minimaxTime, alphaBetaTime);
+    }
+}
+
+
+/* ============================================================
    MAIN
    ============================================================ */
 
@@ -593,8 +637,13 @@ int main(void)
      * avec FindBestMove(). Profondeur 3 pour rester rapide
      * (Minimax sans Alpha-Beta grossit vite).
      */
+    //TestSelfPlay(500, 3);
 
-    TestSelfPlay(500, 3);
+    // Test 7 : verifie que AlphaBeta donne le meme resultat que Minimax, en plus rapide
+    TestAlphaBetaComparison();
+
+
+
 
 
     printf("\n");
