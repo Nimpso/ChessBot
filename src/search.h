@@ -21,5 +21,10 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
  */
 Move FindBestMove(Position *position, int depth);
 
+// Cherche a profondeur croissante (1, 2, 3...) jusqu'a maxDepth
+// ou jusqu'a depasser timeLimitSeconds. Retourne le meilleur coup
+// de la derniere profondeur terminee.
+Move IterativeDeepening(Position *position, int maxDepth, double timeLimitSeconds);
+
 
 #endif

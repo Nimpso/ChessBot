@@ -569,6 +569,78 @@ void TestAlphaBetaComparison(void)
     }
 }
 
+/* ============================================================
+   TEST 8
+   SELF-PLAY AVEC ITERATIVE DEEPENING (budget-temps par coup)
+   ============================================================ */
+
+void TestSelfPlayIterativeDeepening(int maxHalfMoves, int maxDepth, double timePerMove)
+{
+    Position position;
+    InitBoard(&position);
+
+    printf("\n");
+    printf("========================================\n");
+    printf("   TEST 8 : SELF-PLAY (iterative deepening, %.1fs/coup)\n", timePerMove);
+    printf("========================================\n\n");
+
+    PrintBoard(&position);
+
+    for (int ply = 1; ply <= maxHalfMoves; ply++)
+    {
+        if (IsFiftyMoveRule(&position))
+        {
+            printf("\n>>> NULLE (regle des 50 coups sans capture ni coup de pion).\n");
+            return;
+        }
+
+        MoveList legalMoves;
+        GenerateLegalMoves(&position, &legalMoves);
+
+        if (legalMoves.count == 0)
+        {
+            if (IsCheckmate(&position))
+            {
+                printf("\n>>> ECHEC ET MAT. Les %s gagnent.\n",
+                       position.sideToMove == 0 ? "noirs" : "blancs");
+            }
+            else
+            {
+                printf("\n>>> PAT. Partie nulle.\n");
+            }
+            return;
+        }
+
+        clock_t start = clock();
+        Move best = IterativeDeepening(&position, maxDepth, timePerMove);
+        double elapsed = (double)(clock() - start) / CLOCKS_PER_SEC;
+
+        printf("%3d. %s joue : %c%d -> %c%d",
+               ply,
+               position.sideToMove == 0 ? "Blancs" : "Noirs ",
+               'a' + best.fromCol, 8 - best.fromRow,
+               'a' + best.toCol,   8 - best.toRow);
+
+        if (best.promotion != '\0')
+        {
+            printf("=%c", best.promotion);
+        }
+
+        MakeMove(&position, best);
+
+        printf("   (score : %d, %.2fs)\n", Evaluate(&position), elapsed);
+        if(ply % 5 == 0)
+        {
+            PrintBoard(&position);
+        }
+    }
+
+    printf("\n>>> Limite de %d demi-coups atteinte, partie non terminee.\n",
+           maxHalfMoves);
+    printf("\n");
+    PrintBoard(&position);
+}
+
 
 /* ============================================================
    MAIN
@@ -637,13 +709,17 @@ int main(void)
      * avec FindBestMove(). Profondeur 3 pour rester rapide
      * (Minimax sans Alpha-Beta grossit vite).
      */
-    TestSelfPlay(500, 3);
+    //TestSelfPlay(500, 3);
 
     // Test 7 : verifie que AlphaBeta donne le meme resultat que Minimax, en plus rapide
+
     //TestAlphaBetaComparison();
 
 
+    // Test 8 : le moteur joue contre lui meme sur quelques coups a une 
+    // profondeur donnee et une temps max mais utilise IterativeDeepening
 
+    TestSelfPlayIterativeDeepening(500, 10, 2);
 
 
     printf("\n");
