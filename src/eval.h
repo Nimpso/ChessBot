@@ -9,5 +9,6 @@ int Evaluate(Position *position);
 
 int PieceValue(char piece);
 int PieceSquareValue(char piece, int row, int col);
+int GamePhase(Position *position);
 
 #endif

@@ -73,6 +73,32 @@ static const int kingTable[8][8] = {
     { 20, 30, 10,  0,  0, 10, 30, 20}
 };
 
+// Roi en finale : au contraire, un roi actif au centre est un atout
+// (il aide a pousser les pions et a soutenir l'attaque).
+static const int kingEndgameTable[8][8] = {
+    {-50,-40,-30,-20,-20,-30,-40,-50},
+    {-30,-20,-10,  0,  0,-10,-20,-30},
+    {-30,-10, 20, 30, 30, 20,-10,-30},
+    {-30,-10, 30, 40, 40, 30,-10,-30},
+    {-30,-10, 30, 40, 40, 30,-10,-30},
+    {-30,-10, 20, 30, 30, 20,-10,-30},
+    {-30,-30,  0,  0,  0,  0,-30,-30},
+    {-50,-30,-30,-30,-30,-30,-30,-50}
+};
+
+// Pions en finale : l'avancee vers la promotion compte beaucoup plus
+// qu'en milieu de partie, ou la structure/le centre priment.
+static const int pawnEndgameTable[8][8] = {
+    {  0,  0,  0,  0,  0,  0,  0,  0},
+    { 80, 80, 80, 80, 80, 80, 80, 80},
+    { 50, 50, 50, 50, 50, 50, 50, 50},
+    { 30, 30, 30, 30, 30, 30, 30, 30},
+    { 20, 20, 20, 20, 20, 20, 20, 20},
+    { 10, 10, 10, 10, 10, 10, 10, 10},
+    { 10, 10, 10, 10, 10, 10, 10, 10},
+    {  0,  0,  0,  0,  0,  0,  0,  0}
+};
+
 int PieceSquareValue(char piece, int row, int col)
 {
     // Les tables sont ecrites du point de vue blanc, on les
@@ -104,6 +130,46 @@ int PieceValue(char piece)
     }
 }
 
+// Poids de "phase" par piece (independant de PieceValue, qui sert au
+// materiel). Total au depart : 2*(2+2+4+4) = 24 -> ouverture.
+// Plus aucune piece majeure/mineure sur le plateau -> 0 -> finale.
+static int PiecePhaseWeight(char piece)
+{
+    switch (piece)
+    {
+        case 'N': case 'n': return 1;
+        case 'B': case 'b': return 1;
+        case 'R': case 'r': return 2;
+        case 'Q': case 'q': return 4;
+        default: return 0;
+    }
+}
+
+int GamePhase(Position *position)
+{
+    int phase = 0;
+
+    for (int row = 0; row < 8; row++)
+    {
+        for (int col = 0; col < 8; col++)
+        {
+            phase += PiecePhaseWeight(position->board[row][col]);
+        }
+    }
+
+    if (phase > 24)
+        phase = 24; // securite si jamais une promotion multiplie les dames
+
+    return phase;
+}
+
+// Melange mgValue et egValue selon la phase (24 = tout milieu de
+// partie, 0 = tout finale).
+static int Interpolate(int mgValue, int egValue, int phase)
+{
+    return (mgValue * phase + egValue * (24 - phase)) / 24;
+}
+
 int Evaluate(Position *position)
 {
     /*
@@ -133,8 +199,11 @@ int Evaluate(Position *position)
     /*
      * Évaluation matérielle simple : on additionne la valeur
      * de chaque pièce, en positif pour les blancs, en négatif
-     * pour les noirs.
+     * pour les noirs. Le roi et les pions utilisent une table
+     * qui depend de la phase de la partie (ouverture/milieu de
+     * partie -> finale).
      */
+    int phase = GamePhase(position);
     int score = 0;
 
     for (int row = 0; row < 8; row++)
@@ -146,7 +215,23 @@ int Evaluate(Position *position)
             if (piece == '.')
                 continue;
 
-            int value = PieceValue(piece) + PieceSquareValue(piece, row, col);
+            int r = IsWhitePiece(piece) ? row : 7 - row;
+            int positionalValue;
+
+            if (piece == 'K' || piece == 'k')
+            {
+                positionalValue = Interpolate(kingTable[r][col], kingEndgameTable[r][col], phase);
+            }
+            else if (piece == 'P' || piece == 'p')
+            {
+                positionalValue = Interpolate(pawnTable[r][col], pawnEndgameTable[r][col], phase);
+            }
+            else
+            {
+                positionalValue = PieceSquareValue(piece, row, col);
+            }
+
+            int value = PieceValue(piece) + positionalValue;
 
             if (IsWhitePiece(piece))
                 score += value;

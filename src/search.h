@@ -20,11 +20,22 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
  * de "position", en explorant "depth" demi-coups avec Minimax.
  */
 Move FindBestMove(Position *position, int depth);
+// Poursuit l'exploration des captures au-dela de la profondeur 0,
+// pour ne pas evaluer une position en plein milieu d'un echange.
+int Quiescence(Position *position, int alpha, int beta, int maximizingPlayer);
+
+
+typedef struct
+{
+    Move move;
+    int score;
+    int depth;
+} SearchResult;
 
 // Cherche a profondeur croissante (1, 2, 3...) jusqu'a maxDepth
 // ou jusqu'a depasser timeLimitSeconds. Retourne le meilleur coup
 // de la derniere profondeur terminee.
-Move IterativeDeepening(Position *position, int maxDepth, double timeLimitSeconds);
+SearchResult IterativeDeepening(Position *position, int maxDepth, double timeLimitSeconds);
 
 
 #endif

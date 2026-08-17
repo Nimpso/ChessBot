@@ -26,4 +26,7 @@ void PrintBoard(Position *position);
 int IsWhitePiece(char piece);
 int IsBlackPiece(char piece);
 
+void InitPositionFromFEN(Position *position, const char *fen);
+int ParseFEN(Position *position, const char *fen);
+
 #endif
