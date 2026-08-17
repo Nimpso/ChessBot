@@ -150,66 +150,66 @@ int main(void)
 
     //TestSelfPlayIterativeDeepening(500, 10, 2);
 
-     // Test 1: Position initiale (pour référence)
+    // Test 1 : MAT EN 1
     TestPositionFromFEN(
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "Position initiale",
+        "7k/6Q1/6K1/8/8/8/8/8 w - - 0 1",
+        "Mat en 1 ",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 2: Mat en 1 (pour vérifier que le moteur trouve le mat)
+    // Test 2 : finale
     TestPositionFromFEN(
-        "7k/5Q2/8/8/8/8/8/7K w - - 0 1",
-        "Mat du couloir (Df7-f8#)",
+        "6k1/5ppp/8/8/8/8/5Q2/6K1 w - - 0 1",
+        "Finale dame - recherche de mat",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 3: Fourchette du cavalier
+    // Test 3 : prise
     TestPositionFromFEN(
-        "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/2N2N2/PPPP1PPP/R1B1K1NR w KQkq - 0 1",
-        "Attaque sur f7",
+        "r3k2r/ppp2ppp/2n5/3q4/8/4N3/PPPP1PPP/R2QK2R w KQkq - 0 1",
+        "gain de matériel",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 4: Partie italienne
+    // Test 4 : TACTIQUE DE GAIN DE PIECE
     TestPositionFromFEN(
-        "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1",
-        "Partie italienne",
+        "r1bqk2r/pppp1ppp/2n2n2/8/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1",
+        "Milieu de jeu - tactique et développement",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 5: Position avec promotion
+    // Test 5 : finale nulle
     TestPositionFromFEN(
-        "1k6/8/8/8/8/8/7P/7K w - - 0 1",
-        "Promotion du pion h2",
+        "k7/P7/8/8/8/8/8/6K1 w - - 0 1",
+        "Promotion - choix de la promotion",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 6: Position avec prise en passant
+    // Test 6 : PRISE EN PASSANT
     TestPositionFromFEN(
-        "rnbqkbnr/pppp1ppp/8/4pP2/8/8/PPPPP1PP/RNBQKBNR w KQkq e6 0 1",
-        "Prise en passant disponible",
+        "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+        "Prise en passant",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 7: Position pour comparer avec Stockfish
+    // Test 7 : ROQUE
     TestPositionFromFEN(
-        "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQ - 0 1",
-        "Position milieu de jeu (comparer avec Stockfish)",
+        "r3k2r/pppq1ppp/2npbn2/8/2B1P3/2N1BN2/PPP2PPP/R2QK2R w KQkq - 0 1",
+        "Milieu de jeu - roque et développement",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 8: Mat en 2
+    // Test 8 : MILIEU DE JEU COMPLEXE
     TestPositionFromFEN(
-        "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/2N5/PPPP1PPP/R1B1K1NR w KQkq - 0 1",
-        "Mat en 2 (Dxf7+)",
+        "r1bq1rk1/ppp2ppp/2np1n2/8/2B1P3/2N1BN2/PPP2PPP/R2Q1RK1 w - - 0 1",
+        "Milieu de jeu complexe - comparaison Stockfish",
         thinkTimeSeconds,
         maxDepth
     );
