@@ -6,6 +6,8 @@
 #define INFINITY_SCORE 2000000000
 #define MAX_KILLER_DEPTH 64
 
+static volatile int searchStopped = 0;
+
 static int g_timeLimited = 0;
 static clock_t g_deadline;
 static int g_timeUp;
@@ -24,6 +26,7 @@ static int g_hasPvMove = 0;
 // dans l'arbre. Essayes tot aux noeuds de meme profondeur.
 static Move g_killerMoves[MAX_KILLER_DEPTH][2];
 static int g_hasKiller[MAX_KILLER_DEPTH][2];
+
 
 static int TimeUp(void)
 {
@@ -55,7 +58,7 @@ static void ClearSearchDeadline(void)
 
 static int WasSearchInterrupted(void)
 {
-    return g_timeUp;
+    return g_timeUp || searchStopped;
 }
 
 static int MovesEqual(Move a, Move b)
@@ -325,6 +328,12 @@ int AlphaBeta(
     int beta,
     int maximizingPlayer)
 {
+
+    if (WasSearchInterrupted())
+    {
+        return 0;
+    }
+
     if (TimeUp())
     {
         return 0;
@@ -511,31 +520,36 @@ int AlphaBeta(
         /*
          * ----------------------------------------------------
          * STOCKAGE TT
+         * (jamais si le temps est ecoule : "best" serait
+         * contamine par le 0 factice remonte par TimeUp())
          * ----------------------------------------------------
          */
 
-        TTFlag flag;
+        if (!WasSearchInterrupted())
+        {
+            TTFlag flag;
 
-        if (best <= originalAlpha)
-        {
-            flag = TT_ALPHA;
-        }
-        else if (best >= beta)
-        {
-            flag = TT_BETA;
-        }
-        else
-        {
-            flag = TT_EXACT;
-        }
+            if (best <= originalAlpha)
+            {
+                flag = TT_ALPHA;
+            }
+            else if (best >= beta)
+            {
+                flag = TT_BETA;
+            }
+            else
+            {
+                flag = TT_EXACT;
+            }
 
-        TT_Store(
-            position->hash,
-            depth,
-            best,
-            flag,
-            bestMove
-        );
+            TT_Store(
+                position->hash,
+                depth,
+                best,
+                flag,
+                bestMove
+            );
+        }
 
         return best;
     }
@@ -617,31 +631,35 @@ int AlphaBeta(
         /*
          * ----------------------------------------------------
          * STOCKAGE TT
+         * (jamais si le temps est ecoule)
          * ----------------------------------------------------
          */
 
-        TTFlag flag;
+        if (!WasSearchInterrupted())
+        {
+            TTFlag flag;
 
-        if (best <= originalAlpha)
-        {
-            flag = TT_ALPHA;
-        }
-        else if (best >= beta)
-        {
-            flag = TT_BETA;
-        }
-        else
-        {
-            flag = TT_EXACT;
-        }
+            if (best <= originalAlpha)
+            {
+                flag = TT_ALPHA;
+            }
+            else if (best >= beta)
+            {
+                flag = TT_BETA;
+            }
+            else
+            {
+                flag = TT_EXACT;
+            }
 
-        TT_Store(
-            position->hash,
-            depth,
-            best,
-            flag,
-            bestMove
-        );
+            TT_Store(
+                position->hash,
+                depth,
+                best,
+                flag,
+                bestMove
+            );
+        }
 
         return best;
     }
@@ -684,39 +702,143 @@ Move FindBestMove(Position *position, int depth)
     return bestMove;
 }
 
-SearchResult IterativeDeepening(Position *position, int maxDepth, double timeLimitSeconds)
+SearchResult IterativeDeepening(
+    Position *position,
+    int maxDepth,
+    double timeLimitSeconds)
 {
+    /*
+     * Nouvelle recherche :
+     * on autorise à nouveau la recherche.
+     */
+    searchStopped = 0;
+
+    /*
+     * Initialisation du temps de recherche.
+     */
     SetSearchDeadline(timeLimitSeconds);
-   // TT_Clear();
+
+    /*
+     * On ne vide PAS la TT ici.
+     *
+     * La TT doit être conservée entre les
+     * différentes profondeurs de l'iterative deepening.
+     */
     ClearKillers();
+
     g_hasPvMove = 0;
 
+    /*
+     * Génération des coups légaux.
+     */
     MoveList legalMoves;
-    GenerateLegalMoves(position, &legalMoves);
 
+    GenerateLegalMoves(
+        position,
+        &legalMoves
+    );
+
+    /*
+     * Sécurité :
+     * aucune position légale.
+     */
     SearchResult result;
+
+    if (legalMoves.count == 0)
+    {
+        result.move = (Move){0};
+        result.score = Evaluate(position);
+        result.depth = 0;
+
+        ClearSearchDeadline();
+
+        return result;
+    }
+
+    /*
+     * Résultat de secours.
+     *
+     * Tant qu'aucune profondeur complète n'a été
+     * terminée, on conserve le premier coup légal.
+     */
     result.move = legalMoves.moves[0];
     result.score = Evaluate(position);
     result.depth = 0;
 
+
+    /*
+     * ========================================================
+     * ITERATIVE DEEPENING
+     * ========================================================
+     */
+
     for (int depth = 1; depth <= maxDepth; depth++)
     {
-        Move candidate = FindBestMove(position, depth);
-
+        /*
+         * Si le temps est écoulé ou si UCI a demandé
+         * l'arrêt, on arrête avant de commencer
+         * une nouvelle profondeur.
+         */
         if (WasSearchInterrupted())
         {
             break;
         }
 
+        /*
+         * Recherche complète à cette profondeur.
+         */
+        Move candidate =
+            FindBestMove(
+                position,
+                depth
+            );
+
+        /*
+         * IMPORTANT :
+         *
+         * Si la recherche a été interrompue pendant
+         * cette profondeur, on NE valide PAS candidate.
+         *
+         * On garde le résultat de la profondeur précédente.
+         */
+        if (WasSearchInterrupted())
+        {
+            break;
+        }
+
+        /*
+         * La profondeur est entièrement terminée.
+         * On valide donc le nouveau résultat.
+         */
         result.move = candidate;
         result.score = g_lastRootScore;
         result.depth = depth;
 
+        /*
+         * Le meilleur coup trouvé devient le PV move
+         * pour la prochaine profondeur.
+         */
         g_pvMove = candidate;
         g_hasPvMove = 1;
     }
 
+
+    /*
+     * Nettoyage de la deadline.
+     */
     ClearSearchDeadline();
 
     return result;
+}
+
+
+void SearchStop(void)
+{
+    searchStopped = 1;
+}
+
+
+void SearchResetStop(void)
+{
+    searchStopped = 0;
 }

@@ -30,10 +30,12 @@ typedef struct
     int depth;
 } SearchResult;
 
-// Cherche a profondeur croissante (1, 2, 3...) jusqu'a maxDepth
-// ou jusqu'a depasser timeLimitSeconds. Retourne le meilleur coup
-// de la derniere profondeur terminee.
-SearchResult IterativeDeepening(Position *position, int maxDepth, double timeLimitSeconds);
+SearchResult IterativeDeepening(
+    Position *position,
+    int maxDepth,
+    double timeLimitSeconds
+);
 
-
+void SearchStop(void);
+void SearchResetStop(void);
 #endif

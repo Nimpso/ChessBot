@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 
 #include "board.h"
 #include "move.h"
@@ -7,6 +8,7 @@
 #include "search.h"
 #include "zobrist.h"
 #include "tt.h"
+#include "uci.h"
 
 
 void PrintMove(Move move)
@@ -305,8 +307,19 @@ void TestPositionFromFEN(
    MAIN
    ============================================================ */
 
-int main(void)
+int main(int argc, char *argv[])
 {
+
+    InitZobrist();
+    TT_Init(64);
+
+    if (argc > 1 &&
+    strcmp(argv[1], "--uci") == 0)
+    {
+        UCI_Loop();
+        return 0;
+    }
+
     printf("\n");
     printf("========================================\n");
     printf("          CHESSBOT - TESTS\n");
@@ -318,16 +331,11 @@ int main(void)
      * --------------------------------------------------------
      */
 
-    InitZobrist();
 
-    /*
-     * 64 MB de Transposition Table
-     */
-    TT_Init(64);
 
     double thinkTimeSeconds = 5.0;
 
-    int maxDepth = 30;
+    int maxDepth = 100;
 
 
     /*
@@ -336,19 +344,21 @@ int main(void)
      * ========================================================
      */
 
-    TestPositionFromFEN(
+    /*TestPositionFromFEN(
         "7k/6Q1/6K1/8/8/8/8/8 w - - 0 1",
         "1 - MAT EN 1",
         thinkTimeSeconds,
         maxDepth
+    );*/
+
+    TestPositionFromFEN(
+        "2k3r1/ppp2pq1/5p2/P6R/7p/1P3Pr1/2P1RQB1/6K1 b - - 1 29",
+        "Probleme lichess",
+        thinkTimeSeconds,
+        maxDepth
     );
 
-
-    /*
-     * ========================================================
-     * TEST 2 : FINALE DAME
-     * ========================================================
-     */
+/*
 
     TestPositionFromFEN(
         "6k1/5ppp/8/8/8/8/5Q2/6K1 w - - 0 1",
@@ -358,11 +368,6 @@ int main(void)
     );
 
 
-    /*
-     * ========================================================
-     * TEST 3 : GAIN DE MATERIEL
-     * ========================================================
-     */
 
     TestPositionFromFEN(
         "r3k2r/ppp2ppp/2n5/3q4/8/4N3/PPPP1PPP/R2QK2R w KQkq - 0 1",
@@ -372,11 +377,7 @@ int main(void)
     );
 
 
-    /*
-     * ========================================================
-     * TEST 4 : TACTIQUE
-     * ========================================================
-     */
+
 
     TestPositionFromFEN(
         "r1bqk2r/pppp1ppp/2n2n2/8/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1",
@@ -386,11 +387,6 @@ int main(void)
     );
 
 
-    /*
-     * ========================================================
-     * TEST 5 : FINALE NULLE
-     * ========================================================
-     */
 
     TestPositionFromFEN(
         "k7/P7/8/8/8/8/8/6K1 w - - 0 1",
@@ -398,13 +394,6 @@ int main(void)
         thinkTimeSeconds,
         maxDepth
     );
-
-
-    /*
-     * ========================================================
-     * TEST 6 : PRISE EN PASSANT
-     * ========================================================
-     */
 
     TestPositionFromFEN(
         "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
@@ -414,11 +403,6 @@ int main(void)
     );
 
 
-    /*
-     * ========================================================
-     * TEST 7 : ROQUE
-     * ========================================================
-     */
 
     TestPositionFromFEN(
         "r3k2r/pppq1ppp/2npbn2/8/2B1P3/2N1BN2/PPP2PPP/R2QK2R w KQkq - 0 1",
@@ -428,18 +412,13 @@ int main(void)
     );
 
 
-    /*
-     * ========================================================
-     * TEST 8 : MILIEU DE JEU COMPLEXE
-     * ========================================================
-     */
 
     TestPositionFromFEN(
         "r1bq1rk1/ppp2ppp/2np1n2/8/2B1P3/2N1BN2/PPP2PPP/R2Q1RK1 w - - 0 1",
         "8 - MILIEU DE JEU COMPLEXE",
         thinkTimeSeconds,
         maxDepth
-    );
+    );*/
 
 
     /*
