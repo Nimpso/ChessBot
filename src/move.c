@@ -156,6 +156,97 @@ void MakeMove(Position *position, Move move)
     8 - move.toRow);*/
 }
 
+// Comme MakeMove, mais capture d'abord tout ce qu'il faut pour
+// pouvoir revenir en arriere avec UndoMove() - sans jamais avoir
+// a copier toute la Position.
+UndoInfo MakeMoveWithUndo(Position *position, Move move)
+{
+    UndoInfo undo;
+
+    undo.prevWhiteKingSideCastle = position->whiteKingSideCastle;
+    undo.prevWhiteQueenSideCastle = position->whiteQueenSideCastle;
+    undo.prevBlackKingSideCastle = position->blackKingSideCastle;
+    undo.prevBlackQueenSideCastle = position->blackQueenSideCastle;
+    undo.prevEnPassantRow = position->enPassantRow;
+    undo.prevEnPassantCol = position->enPassantCol;
+    undo.prevHalfMoveClock = position->halfMoveClock;
+
+    if (move.enPassant)
+    {
+        // Le pion pris n'est pas sur la case d'arrivee
+        undo.capturedPiece = position->board[move.fromRow][move.toCol];
+        undo.wasEnPassant = 1;
+    }
+    else
+    {
+        undo.capturedPiece = position->board[move.toRow][move.toCol];
+        undo.wasEnPassant = 0;
+    }
+
+    MakeMove(position, move);
+
+    return undo;
+}
+
+void UndoMove(Position *position, Move move, UndoInfo undo)
+{
+    position->sideToMove = (position->sideToMove == 0) ? 1 : 0;
+
+    // Quelle piece a bouge a l'origine (avant une eventuelle promotion) ?
+    char movedPiece;
+
+    if (move.promotion != '\0')
+    {
+        movedPiece = (move.promotion >= 'A' && move.promotion <= 'Z') ? 'P' : 'p';
+    }
+    else
+    {
+        movedPiece = position->board[move.toRow][move.toCol];
+    }
+
+    position->board[move.fromRow][move.fromCol] = movedPiece;
+
+    if (move.enPassant)
+    {
+        position->board[move.toRow][move.toCol] = '.';
+        position->board[move.fromRow][move.toCol] = undo.capturedPiece;
+    }
+    else
+    {
+        position->board[move.toRow][move.toCol] = undo.capturedPiece;
+    }
+
+    // Annuler le deplacement de la tour si c'etait un roque
+    if (movedPiece == 'K' && move.fromCol == 4 && move.toCol == 6) // petit roque blanc
+    {
+        position->board[7][7] = position->board[7][5];
+        position->board[7][5] = '.';
+    }
+    else if (movedPiece == 'K' && move.fromCol == 4 && move.toCol == 2) // grand roque blanc
+    {
+        position->board[7][0] = position->board[7][3];
+        position->board[7][3] = '.';
+    }
+    else if (movedPiece == 'k' && move.fromCol == 4 && move.toCol == 6) // petit roque noir
+    {
+        position->board[0][7] = position->board[0][5];
+        position->board[0][5] = '.';
+    }
+    else if (movedPiece == 'k' && move.fromCol == 4 && move.toCol == 2) // grand roque noir
+    {
+        position->board[0][0] = position->board[0][3];
+        position->board[0][3] = '.';
+    }
+
+    position->whiteKingSideCastle = undo.prevWhiteKingSideCastle;
+    position->whiteQueenSideCastle = undo.prevWhiteQueenSideCastle;
+    position->blackKingSideCastle = undo.prevBlackKingSideCastle;
+    position->blackQueenSideCastle = undo.prevBlackQueenSideCastle;
+    position->enPassantRow = undo.prevEnPassantRow;
+    position->enPassantCol = undo.prevEnPassantCol;
+    position->halfMoveClock = undo.prevHalfMoveClock;
+}
+
 void GeneratePawnMoves(Position *position, MoveList *moveList)
 {
     
@@ -743,13 +834,6 @@ int IsSquareAttacked(Position *position, int row, int col, int bySide)
     }
 
 
-    /*
-     * --------------------------------------------------------
-     * ATTAQUES DES TOURS / DAMES
-     *
-     * horizontalement et verticalement
-     * --------------------------------------------------------
-     */
 
     char rook = (bySide == 0) ? 'R' : 'r';
 
@@ -797,9 +881,6 @@ int IsInCheck(Position *position, int side)
 {
     char king = (side == 0) ? 'K' : 'k';
 
-    /*
-     * Chercher le roi du joueur
-     */
     for (int row = 0; row < 8; row++)
     {
         for (int col = 0; col < 8; col++)
@@ -821,12 +902,6 @@ int IsInCheck(Position *position, int side)
         }
     }
 
-    /*
-     * Aucun roi trouvé.
-     *
-     * Une position d'échecs valide doit toujours
-     * contenir le roi.
-     */
     return 0;
 }
 
@@ -913,7 +988,6 @@ void GeneratePseudoLegalMoves(Position *position, MoveList *moveList)
 void GenerateLegalMoves(Position *position, MoveList *legalMoves)
 {
     MoveList pseudoMoves;
-    Position copy;
 
     int mover = position->sideToMove;
 
@@ -923,19 +997,15 @@ void GenerateLegalMoves(Position *position, MoveList *legalMoves)
 
     for (int i = 0; i < pseudoMoves.count; i++)
     {
-        CopyPosition(position, &copy);
+        UndoInfo undo = MakeMoveWithUndo(position, pseudoMoves.moves[i]);
 
-        MakeMove(&copy, pseudoMoves.moves[i]);
-
-        /*
-         * Un coup est légal seulement si, après l'avoir joué,
-         * notre propre roi n'est pas en échec.
-         */
-        if (!IsInCheck(&copy, mover))
+        if (!IsInCheck(position, mover))
         {
             legalMoves->moves[legalMoves->count] = pseudoMoves.moves[i];
             legalMoves->count++;
         }
+
+        UndoMove(position, pseudoMoves.moves[i], undo);
     }
 }
 
@@ -951,13 +1021,12 @@ long long Perft(Position *position, int depth)
         return legalMoves.count;
 
     long long nodes = 0;
-    Position copy;
 
     for (int i = 0; i < legalMoves.count; i++)
     {
-        CopyPosition(position, &copy);
-        MakeMove(&copy, legalMoves.moves[i]);
-        nodes += Perft(&copy, depth - 1);
+        UndoInfo undo = MakeMoveWithUndo(position, legalMoves.moves[i]);
+        nodes += Perft(position, depth - 1);
+        UndoMove(position, legalMoves.moves[i], undo);
     }
 
     return nodes;
@@ -968,10 +1037,6 @@ int IsCheckmate(Position *position)
     MoveList legalMoves;
     GenerateLegalMoves(position, &legalMoves);
 
-    /*
-     * Échec et mat = aucun coup légal disponible,
-     * ET le joueur au trait est actuellement en échec.
-     */
     return (legalMoves.count == 0) && IsInCheck(position, position->sideToMove);
 }
 
@@ -980,18 +1045,10 @@ int IsStalemate(Position *position)
     MoveList legalMoves;
     GenerateLegalMoves(position, &legalMoves);
 
-    /*
-     * Pat = aucun coup légal disponible,
-     * MAIS le joueur au trait n'est PAS en échec.
-     */
     return (legalMoves.count == 0) && !IsInCheck(position, position->sideToMove);
 }
 
 int IsFiftyMoveRule(Position *position)
 {
-    /*
-     * 50 coups par joueur sans capture ni coup de pion
-     * = 100 demi-coups.
-     */
     return position->halfMoveClock >= 100;
 }

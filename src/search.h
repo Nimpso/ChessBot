@@ -4,9 +4,6 @@
 #include "board.h"
 #include "move.h"
 
-#define INF 1000000
-
-extern long long nodes;
 /*
  * Explore l'arbre des coups jusqu'à "depth" demi-coups et
  * retourne le meilleur score atteignable pdv blancs

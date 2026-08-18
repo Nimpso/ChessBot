@@ -25,6 +25,24 @@ typedef struct
 } MoveList;
 
 void MakeMove(Position *position, Move move);
+
+// Snapshot minimal necessaire pour annuler un coup joue avec
+// MakeMoveWithUndo(), sans avoir a copier toute la Position.
+typedef struct
+{
+    char capturedPiece;   // '.' si aucune capture
+    int wasEnPassant;
+    int prevWhiteKingSideCastle;
+    int prevWhiteQueenSideCastle;
+    int prevBlackKingSideCastle;
+    int prevBlackQueenSideCastle;
+    int prevEnPassantRow;
+    int prevEnPassantCol;
+    int prevHalfMoveClock;
+} UndoInfo;
+
+UndoInfo MakeMoveWithUndo(Position *position, Move move);
+void UndoMove(Position *position, Move move, UndoInfo undo);
 void GeneratePawnMoves(Position *position, MoveList *moveList);
 void GenerateKnightMoves(Position *position, MoveList *moveList);
 void GenerateBishopMoves(Position *position, MoveList *moveList);

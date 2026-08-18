@@ -4,12 +4,26 @@
 
 
 #define INFINITY_SCORE 2000000000
+#define MAX_KILLER_DEPTH 64
 
 static int g_timeLimited = 0;
 static clock_t g_deadline;
 static int g_timeUp;
 static long long g_nodeCount;
 static int g_lastRootScore; // score du dernier FindBestMove (pour IterativeDeepening)
+
+// "Coup precedent" : le meilleur coup trouve a la profondeur
+// precedente d'IterativeDeepening, essaye en premier a la racine
+// de la profondeur suivante (approximation simple d'un coup PV,
+// sans table de transposition).
+static Move g_pvMove;
+static int g_hasPvMove = 0;
+
+// Coups "killer" : coups tranquilles (non-captures) qui ont
+// provoque une coupure beta a une profondeur donnee, ailleurs
+// dans l'arbre. Essayes tot aux noeuds de meme profondeur.
+static Move g_killerMoves[MAX_KILLER_DEPTH][2];
+static int g_hasKiller[MAX_KILLER_DEPTH][2];
 
 static int TimeUp(void)
 {
@@ -44,43 +58,113 @@ static int WasSearchInterrupted(void)
     return g_timeUp;
 }
 
-// MVV-LVA (Most Valuable Victim - Least Valuable Attacker) : les
-// captures de grosses pieces par de petites pieces sont examinees
-// en premier. Les promotions aussi. Un bon tri fait couper beaucoup
-// plus de branches a AlphaBeta.
-static int MoveOrderScore(Position *position, Move move)
+static int MovesEqual(Move a, Move b)
 {
+    return a.fromRow == b.fromRow && a.fromCol == b.fromCol &&
+           a.toRow == b.toRow && a.toCol == b.toCol &&
+           a.promotion == b.promotion && a.enPassant == b.enPassant;
+}
+
+static void ClearKillers(void)
+{
+    for (int d = 0; d < MAX_KILLER_DEPTH; d++)
+    {
+        g_hasKiller[d][0] = 0;
+        g_hasKiller[d][1] = 0;
+    }
+}
+
+static void StoreKiller(int depth, Move move)
+{
+    if (depth < 0 || depth >= MAX_KILLER_DEPTH)
+    {
+        return;
+    }
+
+    // Pas de doublon en tete
+    if (g_hasKiller[depth][0] && MovesEqual(g_killerMoves[depth][0], move))
+    {
+        return;
+    }
+
+    g_killerMoves[depth][1] = g_killerMoves[depth][0];
+    g_hasKiller[depth][1] = g_hasKiller[depth][0];
+
+    g_killerMoves[depth][0] = move;
+    g_hasKiller[depth][0] = 1;
+}
+
+static int IsKiller(int depth, Move move)
+{
+    if (depth < 0 || depth >= MAX_KILLER_DEPTH)
+    {
+        return 0;
+    }
+
+    return (g_hasKiller[depth][0] && MovesEqual(g_killerMoves[depth][0], move)) ||
+           (g_hasKiller[depth][1] && MovesEqual(g_killerMoves[depth][1], move));
+}
+
+/*
+ * Ordre de priorite du tri des coups :
+ *   Coup precedent (PV)   extremement eleve
+ *   Echec                 tres eleve
+ *   Promotion              tres eleve
+ *   Capture (MVV-LVA)      eleve
+ *   Coup killer             eleve
+ *   Autres coups             faible
+ *
+ * "Echec" est teste avec MakeMoveWithUndo/UndoMove : bien moins
+ * cher qu'une copie complete de la Position.
+ */
+static int MoveOrderScore(Position *position, Move move, int depth)
+{
+    if (g_hasPvMove && MovesEqual(move, g_pvMove))
+    {
+        return 1000000; // extremement eleve
+    }
+
     int score = 0;
 
-    char capturedPiece = position->board[move.toRow][move.toCol];
+    int isCapture = (position->board[move.toRow][move.toCol] != '.') || move.enPassant;
 
-    if (capturedPiece != '.')
+    if (isCapture)
     {
         char attacker = position->board[move.fromRow][move.fromCol];
-        score += 10000 + PieceValue(capturedPiece) * 10 - PieceValue(attacker);
-    }
-    else if (move.enPassant)
-    {
-        score += 10000 + 100 * 10 - 100; // pion prend pion
+        int victimValue = move.enPassant ? 100 : PieceValue(position->board[move.toRow][move.toCol]);
+        score += 10000 + victimValue * 10 - PieceValue(attacker); // eleve
     }
 
     if (move.promotion != '\0')
     {
-        score += 9000 + PieceValue(move.promotion);
+        score += 50000 + PieceValue(move.promotion); // tres eleve
     }
 
-    return score;
+    UndoInfo undo = MakeMoveWithUndo(position, move);
+    if (IsInCheck(position, position->sideToMove))
+    {
+        score += 50000; // tres eleve
+    }
+    UndoMove(position, move, undo);
+
+    if (!isCapture && move.promotion == '\0' && IsKiller(depth, move))
+    {
+        score += 9000; // eleve
+    }
+
+    return score; // sinon : faible (0)
 }
 
 // Tri par insertion (liste courte, pas besoin de qsort) : place les
 // coups les plus prometteurs en tete de liste, en place.
-static void OrderMoves(Position *position, MoveList *moveList)
+// depth = -1 pour desactiver le bonus "killer" (utilise en quiescence).
+static void OrderMoves(Position *position, MoveList *moveList, int depth)
 {
     static int scores[256];
 
     for (int i = 0; i < moveList->count; i++)
     {
-        scores[i] = MoveOrderScore(position, moveList->moves[i]);
+        scores[i] = MoveOrderScore(position, moveList->moves[i], depth);
     }
 
     for (int i = 1; i < moveList->count; i++)
@@ -115,8 +199,6 @@ int Quiescence(Position *position, int alpha, int beta, int maximizingPlayer)
 
     int standPat = Evaluate(position);
 
-    // "stand pat" : le score si on ne capture plus rien. Sert de
-    // plancher/plafond, comme dans AlphaBeta normal.
     if (maximizingPlayer)
     {
         if (standPat >= beta) return beta;
@@ -136,7 +218,6 @@ int Quiescence(Position *position, int alpha, int beta, int maximizingPlayer)
         return standPat; // mat/pat deja pris en compte dans Evaluate()
     }
 
-    // Ne garder que les captures et promotions
     MoveList captures;
     captures.count = 0;
 
@@ -152,18 +233,15 @@ int Quiescence(Position *position, int alpha, int beta, int maximizingPlayer)
         }
     }
 
-    OrderMoves(position, &captures);
-
-    Position copy;
+    OrderMoves(position, &captures, -1); // pas de killer en quiescence
 
     if (maximizingPlayer)
     {
         for (int i = 0; i < captures.count; i++)
         {
-            CopyPosition(position, &copy);
-            MakeMove(&copy, captures.moves[i]);
-
-            int score = Quiescence(&copy, alpha, beta, 0);
+            UndoInfo undo = MakeMoveWithUndo(position, captures.moves[i]);
+            int score = Quiescence(position, alpha, beta, 0);
+            UndoMove(position, captures.moves[i], undo);
 
             if (score > alpha) alpha = score;
             if (alpha >= beta) break;
@@ -175,10 +253,9 @@ int Quiescence(Position *position, int alpha, int beta, int maximizingPlayer)
     {
         for (int i = 0; i < captures.count; i++)
         {
-            CopyPosition(position, &copy);
-            MakeMove(&copy, captures.moves[i]);
-
-            int score = Quiescence(&copy, alpha, beta, 1);
+            UndoInfo undo = MakeMoveWithUndo(position, captures.moves[i]);
+            int score = Quiescence(position, alpha, beta, 1);
+            UndoMove(position, captures.moves[i], undo);
 
             if (score < beta) beta = score;
             if (alpha >= beta) break;
@@ -203,18 +280,15 @@ int Minimax(Position *position, int depth, int maximizingPlayer)
         return Evaluate(position);
     }
 
-    Position copy;
-
     if (maximizingPlayer)
     {
         int best = -INFINITY_SCORE;
 
         for (int i = 0; i < legalMoves.count; i++)
         {
-            CopyPosition(position, &copy);
-            MakeMove(&copy, legalMoves.moves[i]);
-
-            int score = Minimax(&copy, depth - 1, 0);
+            UndoInfo undo = MakeMoveWithUndo(position, legalMoves.moves[i]);
+            int score = Minimax(position, depth - 1, 0);
+            UndoMove(position, legalMoves.moves[i], undo);
 
             if (score > best)
             {
@@ -230,10 +304,9 @@ int Minimax(Position *position, int depth, int maximizingPlayer)
 
         for (int i = 0; i < legalMoves.count; i++)
         {
-            CopyPosition(position, &copy);
-            MakeMove(&copy, legalMoves.moves[i]);
-
-            int score = Minimax(&copy, depth - 1, 1);
+            UndoInfo undo = MakeMoveWithUndo(position, legalMoves.moves[i]);
+            int score = Minimax(position, depth - 1, 1);
+            UndoMove(position, legalMoves.moves[i], undo);
 
             if (score < best)
             {
@@ -247,7 +320,6 @@ int Minimax(Position *position, int depth, int maximizingPlayer)
 
 int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizingPlayer)
 {
-
     if (TimeUp())
     {
         return 0;
@@ -266,9 +338,7 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
         return Quiescence(position, alpha, beta, maximizingPlayer);
     }
 
-    OrderMoves(position, &legalMoves);
-
-    Position copy;
+    OrderMoves(position, &legalMoves, depth);
 
     if (maximizingPlayer)
     {
@@ -276,10 +346,11 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
 
         for (int i = 0; i < legalMoves.count; i++)
         {
-            CopyPosition(position, &copy);
-            MakeMove(&copy, legalMoves.moves[i]);
+            Move move = legalMoves.moves[i];
 
-            int score = AlphaBeta(&copy, depth - 1, alpha, beta, 0);
+            UndoInfo undo = MakeMoveWithUndo(position, move);
+            int score = AlphaBeta(position, depth - 1, alpha, beta, 0);
+            UndoMove(position, move, undo);
 
             if (score > best)
             {
@@ -293,6 +364,11 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
 
             if (alpha >= beta)
             {
+                int isCapture = (position->board[move.toRow][move.toCol] != '.') || move.enPassant;
+                if (!isCapture && move.promotion == '\0')
+                {
+                    StoreKiller(depth, move);
+                }
                 break; // coupure beta
             }
         }
@@ -305,10 +381,11 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
 
         for (int i = 0; i < legalMoves.count; i++)
         {
-            CopyPosition(position, &copy);
-            MakeMove(&copy, legalMoves.moves[i]);
+            Move move = legalMoves.moves[i];
 
-            int score = AlphaBeta(&copy, depth - 1, alpha, beta, 1);
+            UndoInfo undo = MakeMoveWithUndo(position, move);
+            int score = AlphaBeta(position, depth - 1, alpha, beta, 1);
+            UndoMove(position, move, undo);
 
             if (score < best)
             {
@@ -322,6 +399,11 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
 
             if (alpha >= beta)
             {
+                int isCapture = (position->board[move.toRow][move.toCol] != '.') || move.enPassant;
+                if (!isCapture && move.promotion == '\0')
+                {
+                    StoreKiller(depth, move);
+                }
                 break; // coupure alpha
             }
         }
@@ -335,31 +417,30 @@ Move FindBestMove(Position *position, int depth)
     MoveList legalMoves;
     GenerateLegalMoves(position, &legalMoves);
 
-    OrderMoves(position, &legalMoves);
+    OrderMoves(position, &legalMoves, depth);
 
     int maximizingPlayer = (position->sideToMove == 0);
 
     Move bestMove = legalMoves.moves[0]; // defaut
     int bestScore = maximizingPlayer ? -INFINITY_SCORE : INFINITY_SCORE;
 
-    Position copy;
-
     for (int i = 0; i < legalMoves.count; i++)
     {
-        CopyPosition(position, &copy);
-        MakeMove(&copy, legalMoves.moves[i]);
+        Move move = legalMoves.moves[i];
 
-        int score = AlphaBeta(&copy, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer);
+        UndoInfo undo = MakeMoveWithUndo(position, move);
+        int score = AlphaBeta(position, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer);
+        UndoMove(position, move, undo);
 
         if (maximizingPlayer && score > bestScore)
         {
             bestScore = score;
-            bestMove = legalMoves.moves[i];
+            bestMove = move;
         }
         else if (!maximizingPlayer && score < bestScore)
         {
             bestScore = score;
-            bestMove = legalMoves.moves[i];
+            bestMove = move;
         }
     }
 
@@ -371,6 +452,8 @@ Move FindBestMove(Position *position, int depth)
 SearchResult IterativeDeepening(Position *position, int maxDepth, double timeLimitSeconds)
 {
     SetSearchDeadline(timeLimitSeconds);
+    ClearKillers();
+    g_hasPvMove = 0;
 
     MoveList legalMoves;
     GenerateLegalMoves(position, &legalMoves);
@@ -392,6 +475,9 @@ SearchResult IterativeDeepening(Position *position, int maxDepth, double timeLim
         result.move = candidate;
         result.score = g_lastRootScore;
         result.depth = depth;
+
+        g_pvMove = candidate;
+        g_hasPvMove = 1;
     }
 
     ClearSearchDeadline();

@@ -185,7 +185,7 @@ int main(void)
     // Test 5 : finale nulle
     TestPositionFromFEN(
         "k7/P7/8/8/8/8/8/6K1 w - - 0 1",
-        "Promotion - choix de la promotion",
+        "finale nulle",
         thinkTimeSeconds,
         maxDepth
     );
@@ -201,7 +201,7 @@ int main(void)
     // Test 7 : ROQUE
     TestPositionFromFEN(
         "r3k2r/pppq1ppp/2npbn2/8/2B1P3/2N1BN2/PPP2PPP/R2QK2R w KQkq - 0 1",
-        "Milieu de jeu - roque et développement",
+        "Milieu de jeu - roque et développement roque a ne pas faire",
         thinkTimeSeconds,
         maxDepth
     );
