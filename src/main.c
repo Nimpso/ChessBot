@@ -352,12 +352,32 @@ int main(int argc, char *argv[])
     );*/
 
     TestPositionFromFEN(
-        "2k3r1/ppp2pq1/5p2/P6R/7p/1P3Pr1/2P1RQB1/6K1 b - - 1 29",
-        "Probleme lichess",
+        "3r2k1/p4ppp/8/Q2r1q2/4p3/8/PP3PPP/3R1RK1 w - - 0 21",
+        "Probleme lichess 1",
         thinkTimeSeconds,
         maxDepth
     );
 
+        TestPositionFromFEN(
+        "r2qk2r/pp1np1bp/2p1Q1p1/4P1B1/3nN1P1/8/PP2BP1P/R4RK1 w kq - 0 18",
+        "Probleme lichess 2",
+        thinkTimeSeconds,
+        maxDepth
+    );
+
+    TestPositionFromFEN(
+        "6k1/5q1p/6p1/p2Q2P1/2n4P/8/6BK/8 w - - 0 45",
+        "Probleme lichess 3",
+        thinkTimeSeconds,
+        maxDepth
+    );
+
+    TestPositionFromFEN(
+        "4Q3/1p5k/6p1/1p1b1rqp/1Pp3N1/P6P/5PP1/4R1K1 w - - 0 30",
+        "Probleme lichess 4",
+        thinkTimeSeconds,
+        maxDepth
+    );
 /*
 
     TestPositionFromFEN(
