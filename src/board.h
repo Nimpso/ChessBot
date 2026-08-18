@@ -1,5 +1,6 @@
 #ifndef BOARD_H
 #define BOARD_H
+#include <stdint.h>
 
 typedef struct
 {
@@ -19,6 +20,8 @@ typedef struct
     int enPassantRow;
     int enPassantCol;
     int halfMoveClock;
+
+    uint64_t hash;
 } Position;
 
 void InitBoard(Position *position);

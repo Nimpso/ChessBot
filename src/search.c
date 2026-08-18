@@ -318,43 +318,166 @@ int Minimax(Position *position, int depth, int maximizingPlayer)
     }
 }
 
-int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizingPlayer)
+int AlphaBeta(
+    Position *position,
+    int depth,
+    int alpha,
+    int beta,
+    int maximizingPlayer)
 {
     if (TimeUp())
     {
         return 0;
     }
 
+    /*
+     * --------------------------------------------------------
+     * TABLE DE TRANSPOSITION
+     * --------------------------------------------------------
+     */
+
+    int originalAlpha = alpha;
+
+    int ttScore;
+    Move ttMove;
+
+    if (TT_Probe(
+            position->hash,
+            depth,
+            alpha,
+            beta,
+            &ttScore,
+            &ttMove))
+    {
+        return ttScore;
+    }
+
+    /*
+     * --------------------------------------------------------
+     * GENERATION DES COUPS
+     * --------------------------------------------------------
+     */
+
     MoveList legalMoves;
-    GenerateLegalMoves(position, &legalMoves);
+
+    GenerateLegalMoves(
+        position,
+        &legalMoves
+    );
+
+    /*
+     * --------------------------------------------------------
+     * POSITION TERMINALE
+     * --------------------------------------------------------
+     */
 
     if (legalMoves.count == 0)
     {
         return Evaluate(position);
     }
 
+    /*
+     * --------------------------------------------------------
+     * QUIESCENCE
+     * --------------------------------------------------------
+     */
+
     if (depth == 0)
     {
-        return Quiescence(position, alpha, beta, maximizingPlayer);
+        return Quiescence(
+            position,
+            alpha,
+            beta,
+            maximizingPlayer
+        );
     }
 
-    OrderMoves(position, &legalMoves, depth);
+    /*
+     * --------------------------------------------------------
+     * MOVE ORDERING
+     * --------------------------------------------------------
+     */
+
+    OrderMoves(
+        position,
+        &legalMoves,
+        depth
+    );
+
+    /*
+     * --------------------------------------------------------
+     * METTRE LE COUP DE LA TT EN PREMIER
+     * --------------------------------------------------------
+     */
+
+    if (ttMove.fromRow >= 0)
+    {
+        for (int i = 0;
+             i < legalMoves.count;
+             i++)
+        {
+            if (MovesEqual(
+                    legalMoves.moves[i],
+                    ttMove))
+            {
+                Move temp =
+                    legalMoves.moves[0];
+
+                legalMoves.moves[0] =
+                    legalMoves.moves[i];
+
+                legalMoves.moves[i] =
+                    temp;
+
+                break;
+            }
+        }
+    }
+
+    /*
+     * --------------------------------------------------------
+     * MAX
+     * --------------------------------------------------------
+     */
 
     if (maximizingPlayer)
     {
         int best = -INFINITY_SCORE;
 
-        for (int i = 0; i < legalMoves.count; i++)
-        {
-            Move move = legalMoves.moves[i];
+        Move bestMove = legalMoves.moves[0];
 
-            UndoInfo undo = MakeMoveWithUndo(position, move);
-            int score = AlphaBeta(position, depth - 1, alpha, beta, 0);
-            UndoMove(position, move, undo);
+        for (int i = 0;
+             i < legalMoves.count;
+             i++)
+        {
+            Move move =
+                legalMoves.moves[i];
+
+            UndoInfo undo =
+                MakeMoveWithUndo(
+                    position,
+                    move
+                );
+
+            int score =
+                AlphaBeta(
+                    position,
+                    depth - 1,
+                    alpha,
+                    beta,
+                    0
+                );
+
+            UndoMove(
+                position,
+                move,
+                undo
+            );
 
             if (score > best)
             {
                 best = score;
+                bestMove = move;
             }
 
             if (best > alpha)
@@ -364,32 +487,103 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
 
             if (alpha >= beta)
             {
-                int isCapture = (position->board[move.toRow][move.toCol] != '.') || move.enPassant;
-                if (!isCapture && move.promotion == '\0')
+                int isCapture =
+                    (position->board[
+                        move.toRow
+                    ][
+                        move.toCol
+                    ] != '.') ||
+                    move.enPassant;
+
+                if (!isCapture &&
+                    move.promotion == '\0')
                 {
-                    StoreKiller(depth, move);
+                    StoreKiller(
+                        depth,
+                        move
+                    );
                 }
-                break; // coupure beta
+
+                break;
             }
         }
 
+        /*
+         * ----------------------------------------------------
+         * STOCKAGE TT
+         * ----------------------------------------------------
+         */
+
+        TTFlag flag;
+
+        if (best <= originalAlpha)
+        {
+            flag = TT_ALPHA;
+        }
+        else if (best >= beta)
+        {
+            flag = TT_BETA;
+        }
+        else
+        {
+            flag = TT_EXACT;
+        }
+
+        TT_Store(
+            position->hash,
+            depth,
+            best,
+            flag,
+            bestMove
+        );
+
         return best;
     }
+
+    /*
+     * --------------------------------------------------------
+     * MIN
+     * --------------------------------------------------------
+     */
+
     else
     {
         int best = INFINITY_SCORE;
 
-        for (int i = 0; i < legalMoves.count; i++)
-        {
-            Move move = legalMoves.moves[i];
+        Move bestMove = legalMoves.moves[0];
 
-            UndoInfo undo = MakeMoveWithUndo(position, move);
-            int score = AlphaBeta(position, depth - 1, alpha, beta, 1);
-            UndoMove(position, move, undo);
+        for (int i = 0;
+             i < legalMoves.count;
+             i++)
+        {
+            Move move =
+                legalMoves.moves[i];
+
+            UndoInfo undo =
+                MakeMoveWithUndo(
+                    position,
+                    move
+                );
+
+            int score =
+                AlphaBeta(
+                    position,
+                    depth - 1,
+                    alpha,
+                    beta,
+                    1
+                );
+
+            UndoMove(
+                position,
+                move,
+                undo
+            );
 
             if (score < best)
             {
                 best = score;
+                bestMove = move;
             }
 
             if (best < beta)
@@ -399,14 +593,55 @@ int AlphaBeta(Position *position, int depth, int alpha, int beta, int maximizing
 
             if (alpha >= beta)
             {
-                int isCapture = (position->board[move.toRow][move.toCol] != '.') || move.enPassant;
-                if (!isCapture && move.promotion == '\0')
+                int isCapture =
+                    (position->board[
+                        move.toRow
+                    ][
+                        move.toCol
+                    ] != '.') ||
+                    move.enPassant;
+
+                if (!isCapture &&
+                    move.promotion == '\0')
                 {
-                    StoreKiller(depth, move);
+                    StoreKiller(
+                        depth,
+                        move
+                    );
                 }
-                break; // coupure alpha
+
+                break;
             }
         }
+
+        /*
+         * ----------------------------------------------------
+         * STOCKAGE TT
+         * ----------------------------------------------------
+         */
+
+        TTFlag flag;
+
+        if (best <= originalAlpha)
+        {
+            flag = TT_ALPHA;
+        }
+        else if (best >= beta)
+        {
+            flag = TT_BETA;
+        }
+        else
+        {
+            flag = TT_EXACT;
+        }
+
+        TT_Store(
+            position->hash,
+            depth,
+            best,
+            flag,
+            bestMove
+        );
 
         return best;
     }
@@ -452,6 +687,7 @@ Move FindBestMove(Position *position, int depth)
 SearchResult IterativeDeepening(Position *position, int maxDepth, double timeLimitSeconds)
 {
     SetSearchDeadline(timeLimitSeconds);
+   // TT_Clear();
     ClearKillers();
     g_hasPvMove = 0;
 

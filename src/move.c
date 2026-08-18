@@ -1,5 +1,9 @@
 #include <stdio.h>
 #include "move.h"
+#include "zobrist.h"
+
+static void HashRemovePiece(Position *position, char piece, int row, int col);
+static void HashAddPiece(Position *position, char piece, int row, int col);
 
 void AddMove(MoveList *moveList, int fromRow, int fromCol, int toRow, int toCol)
 {
@@ -41,63 +45,168 @@ void MakeMove(Position *position, Move move)
 {
     char movingPiece = position->board[move.fromRow][move.fromCol];
 
-    /*
-     * Il faut regarder AVANT de modifier le plateau :
-     * un coup de pion ou une capture remet le compteur
-     * des 50 coups a zero.
-     */
-    int isPawnMove = (movingPiece == 'P' || movingPiece == 'p');
-    int isCapture = (position->board[move.toRow][move.toCol] != '.') || move.enPassant;
+    int isPawnMove =
+        (movingPiece == 'P' || movingPiece == 'p');
+
+    int isCapture =
+        (position->board[move.toRow][move.toCol] != '.') ||
+        move.enPassant;
 
     /*
-     * Capture en passant : la pièce prise n'est pas sur la case
-     * d'arrivée mais sur la même rangée que le pion qui capture.
+     * --------------------------------------------------------
+     * EN PASSANT ACTUEL
+     * --------------------------------------------------------
      */
+
+    if (position->enPassantCol >= 0)
+    {
+        position->hash ^= GetEnPassantHash(position->enPassantCol);
+    }
+
+    /*
+     * --------------------------------------------------------
+     * DROITS DE ROQUE ACTUELS
+     * --------------------------------------------------------
+     */
+
+    if (position->whiteKingSideCastle)
+        position->hash ^= GetCastleHash(0);
+
+    if (position->whiteQueenSideCastle)
+        position->hash ^= GetCastleHash(1);
+
+    if (position->blackKingSideCastle)
+        position->hash ^= GetCastleHash(2);
+
+    if (position->blackQueenSideCastle)
+        position->hash ^= GetCastleHash(3);
+
+    /*
+     * --------------------------------------------------------
+     * PIECE QUI BOUGE
+     * --------------------------------------------------------
+     */
+
+    HashRemovePiece(
+        position,
+        movingPiece,
+        move.fromRow,
+        move.fromCol
+    );
+
+    /*
+     * --------------------------------------------------------
+     * CAPTURE
+     * --------------------------------------------------------
+     */
+
     if (move.enPassant)
     {
+        char capturedPiece =
+            position->board[move.fromRow][move.toCol];
+
+        HashRemovePiece(
+            position,
+            capturedPiece,
+            move.fromRow,
+            move.toCol
+        );
+
         position->board[move.fromRow][move.toCol] = '.';
     }
+    else if (position->board[move.toRow][move.toCol] != '.')
+    {
+        char capturedPiece =
+            position->board[move.toRow][move.toCol];
+
+        HashRemovePiece(
+            position,
+            capturedPiece,
+            move.toRow,
+            move.toCol
+        );
+    }
+
+    /*
+     * --------------------------------------------------------
+     * PIECE SUR LA CASE D'ARRIVEE
+     * --------------------------------------------------------
+     */
+
+    char pieceOnTarget;
 
     if (move.promotion != '\0')
     {
-        position->board[move.toRow][move.toCol] = move.promotion;
+        pieceOnTarget = move.promotion;
     }
     else
     {
-        position->board[move.toRow][move.toCol] = movingPiece; //case maintenant = case avant
+        pieceOnTarget = movingPiece;
     }
 
-    position->board[move.fromRow][move.fromCol] = '.'; //case avant = '.'
+    position->board[move.fromRow][move.fromCol] = '.';
+    position->board[move.toRow][move.toCol] = pieceOnTarget;
+
+    HashAddPiece(
+        position,
+        pieceOnTarget,
+        move.toRow,
+        move.toCol
+    );
 
     /*
-     * Roque : le roi vient de bouger de 2 cases, il faut
-     * déplacer la tour concernée en miroir.
+     * --------------------------------------------------------
+     * ROQUE
+     * --------------------------------------------------------
      */
-    if (movingPiece == 'K' && move.fromCol == 4 && move.toCol == 6) // petit roque blanc
+
+    if (movingPiece == 'K' &&
+        move.fromCol == 4 &&
+        move.toCol == 6)
     {
-        position->board[7][5] = position->board[7][7];
+        HashRemovePiece(position, 'R', 7, 7);
+        HashAddPiece(position, 'R', 7, 5);
+
+        position->board[7][5] = 'R';
         position->board[7][7] = '.';
     }
-    else if (movingPiece == 'K' && move.fromCol == 4 && move.toCol == 2) // grand roque blanc
+    else if (movingPiece == 'K' &&
+             move.fromCol == 4 &&
+             move.toCol == 2)
     {
-        position->board[7][3] = position->board[7][0];
+        HashRemovePiece(position, 'R', 7, 0);
+        HashAddPiece(position, 'R', 7, 3);
+
+        position->board[7][3] = 'R';
         position->board[7][0] = '.';
     }
-    else if (movingPiece == 'k' && move.fromCol == 4 && move.toCol == 6) // petit roque noir
+    else if (movingPiece == 'k' &&
+             move.fromCol == 4 &&
+             move.toCol == 6)
     {
-        position->board[0][5] = position->board[0][7];
+        HashRemovePiece(position, 'r', 0, 7);
+        HashAddPiece(position, 'r', 0, 5);
+
+        position->board[0][5] = 'r';
         position->board[0][7] = '.';
     }
-    else if (movingPiece == 'k' && move.fromCol == 4 && move.toCol == 2) // grand roque noir
+    else if (movingPiece == 'k' &&
+             move.fromCol == 4 &&
+             move.toCol == 2)
     {
-        position->board[0][3] = position->board[0][0];
+        HashRemovePiece(position, 'r', 0, 0);
+        HashAddPiece(position, 'r', 0, 3);
+
+        position->board[0][3] = 'r';
         position->board[0][0] = '.';
     }
 
     /*
-     * Mise à jour des droits de roque.
-     * Le roi qui bouge perd ses deux droits.
+     * --------------------------------------------------------
+     * DROITS DE ROQUE
+     * --------------------------------------------------------
      */
+
     if (movingPiece == 'K')
     {
         position->whiteKingSideCastle = 0;
@@ -109,51 +218,92 @@ void MakeMove(Position *position, Move move)
         position->blackQueenSideCastle = 0;
     }
 
-    /*
-     * Une tour qui bouge, ou qui se fait capturer,
-     * perd son droit de roque associé.
-     */
-    if (move.fromRow == 7 && move.fromCol == 0) position->whiteQueenSideCastle = 0;
-    if (move.fromRow == 7 && move.fromCol == 7) position->whiteKingSideCastle  = 0;
-    if (move.fromRow == 0 && move.fromCol == 0) position->blackQueenSideCastle = 0;
-    if (move.fromRow == 0 && move.fromCol == 7) position->blackKingSideCastle  = 0;
+    if (move.fromRow == 7 && move.fromCol == 0)
+        position->whiteQueenSideCastle = 0;
 
-    if (move.toRow == 7 && move.toCol == 0) position->whiteQueenSideCastle = 0;
-    if (move.toRow == 7 && move.toCol == 7) position->whiteKingSideCastle  = 0;
-    if (move.toRow == 0 && move.toCol == 0) position->blackQueenSideCastle = 0;
-    if (move.toRow == 0 && move.toCol == 7) position->blackKingSideCastle  = 0;
+    if (move.fromRow == 7 && move.fromCol == 7)
+        position->whiteKingSideCastle = 0;
+
+    if (move.fromRow == 0 && move.fromCol == 0)
+        position->blackQueenSideCastle = 0;
+
+    if (move.fromRow == 0 && move.fromCol == 7)
+        position->blackKingSideCastle = 0;
+
+    if (move.toRow == 7 && move.toCol == 0)
+        position->whiteQueenSideCastle = 0;
+
+    if (move.toRow == 7 && move.toCol == 7)
+        position->whiteKingSideCastle = 0;
+
+    if (move.toRow == 0 && move.toCol == 0)
+        position->blackQueenSideCastle = 0;
+
+    if (move.toRow == 0 && move.toCol == 7)
+        position->blackKingSideCastle = 0;
 
     /*
-     * La case en passant ne vit qu'un seul demi-coup :
-     * on la réinitialise puis on la recalcule si ce coup
-     * est une avance de pion de 2 cases.
+     * --------------------------------------------------------
+     * NOUVEAUX DROITS DE ROQUE
+     * --------------------------------------------------------
      */
+
+    if (position->whiteKingSideCastle)
+        position->hash ^= GetCastleHash(0);
+
+    if (position->whiteQueenSideCastle)
+        position->hash ^= GetCastleHash(1);
+
+    if (position->blackKingSideCastle)
+        position->hash ^= GetCastleHash(2);
+
+    if (position->blackQueenSideCastle)
+        position->hash ^= GetCastleHash(3);
+
+    /*
+     * --------------------------------------------------------
+     * NOUVELLE CASE EN PASSANT
+     * --------------------------------------------------------
+     */
+
     position->enPassantRow = -1;
     position->enPassantCol = -1;
 
     if ((movingPiece == 'P' || movingPiece == 'p') &&
-        (move.toRow - move.fromRow == 2 || move.fromRow - move.toRow == 2))
+        (move.toRow - move.fromRow == 2 ||
+         move.fromRow - move.toRow == 2))
     {
-        position->enPassantRow = (move.fromRow + move.toRow) / 2;
-        position->enPassantCol = move.fromCol;
+        position->enPassantRow =
+            (move.fromRow + move.toRow) / 2;
+
+        position->enPassantCol =
+            move.fromCol;
+
+        position->hash ^=
+            GetEnPassantHash(position->enPassantCol);
     }
+
+    /*
+     * --------------------------------------------------------
+     * HORLOGE 50 COUPS
+     * --------------------------------------------------------
+     */
 
     if (isPawnMove || isCapture)
-    {
         position->halfMoveClock = 0;
-    }
     else
-    {
         position->halfMoveClock++;
-    }
 
-    position->sideToMove = (position->sideToMove == 0) ? 1 : 0;
+    /*
+     * --------------------------------------------------------
+     * SIDE TO MOVE
+     * --------------------------------------------------------
+     */
 
-    /*printf("%c%d -> %c%d\n",
-    'a' + move.fromCol,
-    8 - move.fromRow,
-    'a' + move.toCol,
-    8 - move.toRow);*/
+    position->sideToMove =
+        (position->sideToMove == 0) ? 1 : 0;
+
+    position->hash ^= GetSideHash();
 }
 
 // Comme MakeMove, mais capture d'abord tout ce qu'il faut pour
@@ -182,7 +332,7 @@ UndoInfo MakeMoveWithUndo(Position *position, Move move)
         undo.capturedPiece = position->board[move.toRow][move.toCol];
         undo.wasEnPassant = 0;
     }
-
+    undo.prevHash = position->hash;
     MakeMove(position, move);
 
     return undo;
@@ -244,6 +394,7 @@ void UndoMove(Position *position, Move move, UndoInfo undo)
     position->blackQueenSideCastle = undo.prevBlackQueenSideCastle;
     position->enPassantRow = undo.prevEnPassantRow;
     position->enPassantCol = undo.prevEnPassantCol;
+    position->hash = undo.prevHash;
     position->halfMoveClock = undo.prevHalfMoveClock;
 }
 
@@ -1051,4 +1202,14 @@ int IsStalemate(Position *position)
 int IsFiftyMoveRule(Position *position)
 {
     return position->halfMoveClock >= 100;
+}
+
+static void HashRemovePiece(Position *position, char piece, int row, int col)
+{
+    position->hash ^= GetPieceHash(piece, row, col);
+}
+
+static void HashAddPiece(Position *position, char piece, int row, int col)
+{
+    position->hash ^= GetPieceHash(piece, row, col);
 }

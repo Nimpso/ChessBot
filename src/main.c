@@ -5,6 +5,8 @@
 #include "move.h"
 #include "eval.h"
 #include "search.h"
+#include "zobrist.h"
+#include "tt.h"
 
 
 void PrintMove(Move move)
@@ -12,21 +14,32 @@ void PrintMove(Move move)
     printf("%c%d -> %c%d",
            'a' + move.fromCol, 8 - move.fromRow,
            'a' + move.toCol,   8 - move.toRow);
- 
+
     if (move.promotion != '\0')
     {
         printf("=%c", move.promotion);
     }
 }
 
-void TestSelfPlayIterativeDeepening(int maxHalfMoves, int maxDepth, double timePerMove)
+
+/* ============================================================
+   TEST SELF-PLAY
+   ============================================================ */
+
+void TestSelfPlayIterativeDeepening(
+    int maxHalfMoves,
+    int maxDepth,
+    double timePerMove)
 {
     Position position;
+
     InitBoard(&position);
 
     printf("\n");
     printf("========================================\n");
-    printf("   TEST 8 : SELF-PLAY (iterative deepening, %.1fs/coup)\n", timePerMove);
+    printf("   TEST 8 : SELF-PLAY\n");
+    printf("   Iterative Deepening + TT\n");
+    printf("   %.1fs / coup\n", timePerMove);
     printf("========================================\n\n");
 
     PrintBoard(&position);
@@ -35,65 +48,142 @@ void TestSelfPlayIterativeDeepening(int maxHalfMoves, int maxDepth, double timeP
     {
         if (IsFiftyMoveRule(&position))
         {
-            printf("\n>>> NULLE (regle des 50 coups sans capture ni coup de pion).\n");
+            printf("\n>>> NULLE (regle des 50 coups).\n");
             return;
         }
 
         MoveList legalMoves;
-        GenerateLegalMoves(&position, &legalMoves);
+
+        GenerateLegalMoves(
+            &position,
+            &legalMoves
+        );
 
         if (legalMoves.count == 0)
         {
             if (IsCheckmate(&position))
             {
-                printf("\n>>> ECHEC ET MAT. Les %s gagnent.\n",
-                       position.sideToMove == 0 ? "noirs" : "blancs");
+                printf(
+                    "\n>>> ECHEC ET MAT. Les %s gagnent.\n",
+                    position.sideToMove == 0
+                        ? "noirs"
+                        : "blancs"
+                );
             }
             else
             {
                 printf("\n>>> PAT. Partie nulle.\n");
             }
+
             return;
         }
 
+        /*
+         * Pour chaque coup de la partie :
+         * nouvelle recherche = nouvelles statistiques.
+         *
+         * La TT est vidée ici uniquement parce que ce test
+         * sert à mesurer chaque recherche indépendamment.
+         */
+        TT_Clear();
+        TT_ResetStats();
+
         clock_t start = clock();
-        SearchResult result = IterativeDeepening(&position, maxDepth, timePerMove);
-        Move best = result.move;  // Extraire le Move de la structure SearchResult
-        double elapsed = (double)(clock() - start) / CLOCKS_PER_SEC;
 
-        printf("%3d. %s joue : %c%d -> %c%d   (score : %d, profondeur: %d, %.2fs)\n",
-        ply,
-        position.sideToMove == 0 ? "Blancs" : "Noirs ",
-        'a' + best.fromCol, 8 - best.fromRow,
-        'a' + best.toCol,   8 - best.toRow,
-        result.score,
-        result.depth,
-        elapsed);
+        SearchResult result =
+            IterativeDeepening(
+                &position,
+                maxDepth,
+                timePerMove
+            );
 
-        if (best.promotion != '\0')
+        Move best = result.move;
+
+        double elapsed =
+            (double)(clock() - start)
+            / CLOCKS_PER_SEC;
+
+        printf("\n");
+        printf("----------------------------------------\n");
+
+        printf(
+            "Coup %d - %s joue : ",
+            ply,
+            position.sideToMove == 0
+                ? "Blancs"
+                : "Noirs"
+        );
+
+        PrintMove(best);
+
+        printf("\n");
+
+        printf(
+            "Score       : %d\n",
+            result.score
+        );
+
+        printf(
+            "Profondeur  : %d\n",
+            result.depth
+        );
+
+        printf(
+            "Temps       : %.2fs\n",
+            elapsed
+        );
+
+        /*
+         * Statistiques TT
+         */
+        TT_PrintStats();
+
+        /*
+         * On joue le meilleur coup
+         */
+        MakeMove(
+            &position,
+            best
+        );
+
+        printf(
+            "Evaluation apres coup : %d\n",
+            Evaluate(&position)
+        );
+
+        if (ply % 5 == 0)
         {
-            printf("=%c", best.promotion);
-        }
-
-        MakeMove(&position, best);
-
-        printf("   (score : %d, %.2fs)\n", Evaluate(&position), elapsed);
-        if(ply % 5 == 0)
-        {
+            printf("\n");
             PrintBoard(&position);
         }
     }
 
-    printf("\n>>> Limite de %d demi-coups atteinte, partie non terminee.\n",
-           maxHalfMoves);
+    printf(
+        "\n>>> Limite de %d demi-coups atteinte.\n",
+        maxHalfMoves
+    );
+
     printf("\n");
     PrintBoard(&position);
 }
 
-void TestPositionFromFEN(const char *fen, const char *description, double thinkTimeSeconds, int maxDepth)
+
+/* ============================================================
+   TEST D'UNE POSITION FEN
+   ============================================================ */
+
+void TestPositionFromFEN(
+    const char *fen,
+    const char *description,
+    double thinkTimeSeconds,
+    int maxDepth)
 {
     Position position;
-    InitPositionFromFEN(&position, fen);
+
+    InitPositionFromFEN(
+        &position,
+        fen
+    );
 
     printf("\n");
     printf("========================================\n");
@@ -101,18 +191,113 @@ void TestPositionFromFEN(const char *fen, const char *description, double thinkT
     printf("========================================\n\n");
 
     printf("FEN : %s\n\n", fen);
-    PrintBoard(&position);
-    printf("\nTrait aux %s\n", position.sideToMove == 0 ? "blancs" : "noirs");
-    printf("Temps de reflexion : %.1f sec\n\n", thinkTimeSeconds);
 
-    SearchResult result = IterativeDeepening(&position, maxDepth, thinkTimeSeconds);
+    PrintBoard(&position);
+
+    printf("\n");
+    printf(
+        "Trait aux %s\n",
+        position.sideToMove == 0
+            ? "blancs"
+            : "noirs"
+    );
+
+    printf(
+        "Temps de reflexion : %.1f sec\n",
+        thinkTimeSeconds
+    );
+
+    /*
+     * --------------------------------------------------------
+     * TT PROPRE POUR CETTE POSITION
+     * --------------------------------------------------------
+     */
+
+    TT_Clear();
+    TT_ResetStats();
+
+    /*
+     * Vérification du hash avant recherche
+     */
+
+    uint64_t computedHash =
+        ComputeZobristHash(&position);
+
+    if (position.hash != computedHash)
+    {
+        printf("\n");
+        printf(
+            "!!! ERREUR HASH POSITION INITIALE !!!\n"
+        );
+
+        printf(
+            "Position.hash  : %llu\n",
+            (unsigned long long)position.hash
+        );
+
+        printf(
+            "Computed hash  : %llu\n",
+            (unsigned long long)computedHash
+        );
+
+        return;
+    }
+
+    printf(
+        "\nHash position : %llu\n",
+        (unsigned long long)position.hash
+    );
+
+    /*
+     * --------------------------------------------------------
+     * RECHERCHE
+     * --------------------------------------------------------
+     */
+
+    SearchResult result =
+        IterativeDeepening(
+            &position,
+            maxDepth,
+            thinkTimeSeconds
+        );
+
+    /*
+     * --------------------------------------------------------
+     * RESULTAT
+     * --------------------------------------------------------
+     */
+
+    printf("\n");
+    printf("----------------------------------------\n");
 
     printf("Meilleur coup trouve : ");
+
     PrintMove(result.move);
+
     printf("\n");
-    printf("Evaluation : %d\n", result.score);
-    printf("Profondeur atteinte : %d\n", result.depth);
+
+    printf(
+        "Evaluation          : %d\n",
+        result.score
+    );
+
+    printf(
+        "Profondeur atteinte : %d\n",
+        result.depth
+    );
+
+    /*
+     * --------------------------------------------------------
+     * STATISTIQUES TT
+     * --------------------------------------------------------
+     */
+
     printf("\n");
+    printf("STATISTIQUES TRANSPOSITION TABLE\n");
+
+    TT_PrintStats();
+
+    printf("----------------------------------------\n");
 }
 
 
@@ -127,93 +312,141 @@ int main(void)
     printf("          CHESSBOT - TESTS\n");
     printf("========================================\n");
 
-    Position position;
-    InitBoard(&position);
- 
- 
+    /*
+     * --------------------------------------------------------
+     * INITIALISATION
+     * --------------------------------------------------------
+     */
+
+    InitZobrist();
+
+    /*
+     * 64 MB de Transposition Table
+     */
+    TT_Init(64);
+
     double thinkTimeSeconds = 5.0;
-    int maxDepth = 30; 
- 
- 
-    /*printf("Position analysee :\n\n");
-    PrintBoard(&position);
-    printf("\nTrait aux %s\n", position.sideToMove == 0 ? "blancs" : "noirs");
-    printf("Temps de reflexion : %.1f sec\n\n", thinkTimeSeconds);
- 
-    SearchResult result = IterativeDeepening(&position, maxDepth, thinkTimeSeconds);
- 
-    printf("Meilleur coup trouve : ");
-    PrintMove(result.move);
-    printf("\n");
-    printf("Evaluation : %d\n", result.score);
-    printf("Profondeur atteinte : %d\n", result.depth);*/
 
-    //TestSelfPlayIterativeDeepening(500, 10, 2);
+    int maxDepth = 30;
 
-    // Test 1 : MAT EN 1
+
+    /*
+     * ========================================================
+     * TEST 1 : MAT EN 1
+     * ========================================================
+     */
+
     TestPositionFromFEN(
         "7k/6Q1/6K1/8/8/8/8/8 w - - 0 1",
-        "Mat en 1 ",
+        "1 - MAT EN 1",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 2 : finale
+
+    /*
+     * ========================================================
+     * TEST 2 : FINALE DAME
+     * ========================================================
+     */
+
     TestPositionFromFEN(
         "6k1/5ppp/8/8/8/8/5Q2/6K1 w - - 0 1",
-        "Finale dame - recherche de mat",
+        "2 - FINALE DAME / RECHERCHE DE MAT",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 3 : prise
+
+    /*
+     * ========================================================
+     * TEST 3 : GAIN DE MATERIEL
+     * ========================================================
+     */
+
     TestPositionFromFEN(
         "r3k2r/ppp2ppp/2n5/3q4/8/4N3/PPPP1PPP/R2QK2R w KQkq - 0 1",
-        "gain de matériel",
+        "3 - GAIN DE MATERIEL",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 4 : TACTIQUE DE GAIN DE PIECE
+
+    /*
+     * ========================================================
+     * TEST 4 : TACTIQUE
+     * ========================================================
+     */
+
     TestPositionFromFEN(
         "r1bqk2r/pppp1ppp/2n2n2/8/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1",
-        "Milieu de jeu - tactique et développement",
+        "4 - MILIEU DE JEU / TACTIQUE",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 5 : finale nulle
+
+    /*
+     * ========================================================
+     * TEST 5 : FINALE NULLE
+     * ========================================================
+     */
+
     TestPositionFromFEN(
         "k7/P7/8/8/8/8/8/6K1 w - - 0 1",
-        "finale nulle",
+        "5 - FINALE NULLE",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 6 : PRISE EN PASSANT
+
+    /*
+     * ========================================================
+     * TEST 6 : PRISE EN PASSANT
+     * ========================================================
+     */
+
     TestPositionFromFEN(
         "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
-        "Prise en passant",
+        "6 - PRISE EN PASSANT",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 7 : ROQUE
+
+    /*
+     * ========================================================
+     * TEST 7 : ROQUE
+     * ========================================================
+     */
+
     TestPositionFromFEN(
         "r3k2r/pppq1ppp/2npbn2/8/2B1P3/2N1BN2/PPP2PPP/R2QK2R w KQkq - 0 1",
-        "Milieu de jeu - roque et développement roque a ne pas faire",
+        "7 - MILIEU DE JEU / ROQUE",
         thinkTimeSeconds,
         maxDepth
     );
 
-    // Test 8 : MILIEU DE JEU COMPLEXE
+
+    /*
+     * ========================================================
+     * TEST 8 : MILIEU DE JEU COMPLEXE
+     * ========================================================
+     */
+
     TestPositionFromFEN(
         "r1bq1rk1/ppp2ppp/2np1n2/8/2B1P3/2N1BN2/PPP2PPP/R2Q1RK1 w - - 0 1",
-        "Milieu de jeu complexe - comparaison Stockfish",
+        "8 - MILIEU DE JEU COMPLEXE",
         thinkTimeSeconds,
         maxDepth
     );
 
+
+    /*
+     * ========================================================
+     * FIN
+     * ========================================================
+     */
 
     printf("\n");
     printf("========================================\n");

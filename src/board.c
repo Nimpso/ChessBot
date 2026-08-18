@@ -2,6 +2,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "board.h"
+#include "zobrist.h"
 
 //////////////////////////////////////////////////////////////////////////////////
 // les blancs (0) sont en MAJ les noirs (1) sont en min //
@@ -52,6 +53,7 @@ void InitBoard(Position *position)
     position->enPassantCol = -1;
 
     position->halfMoveClock = 0;
+    position->hash = ComputeZobristHash(position);
 }
 
 void PrintBoard(Position *position)
@@ -210,6 +212,7 @@ int ParseFEN(Position *position, const char *fen)
             position->halfMoveClock = clock;
         }
     }
+    position->hash = ComputeZobristHash(position);
 
     return 1; // Succès
 }

@@ -3,6 +3,7 @@
 
 #include "board.h"
 #include "move.h"
+#include "tt.h"
 
 /*
  * Explore l'arbre des coups jusqu'à "depth" demi-coups et

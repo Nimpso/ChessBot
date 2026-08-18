@@ -2,6 +2,7 @@
 #define MOVE_H
 
 #include "board.h"
+#include <stdint.h>
 
 typedef struct
 {
@@ -39,6 +40,7 @@ typedef struct
     int prevEnPassantRow;
     int prevEnPassantCol;
     int prevHalfMoveClock;
+    uint64_t prevHash;
 } UndoInfo;
 
 UndoInfo MakeMoveWithUndo(Position *position, Move move);
