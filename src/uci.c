@@ -95,9 +95,9 @@ static double CalculateThinkTime(
     int wtime,
     int btime,
     int winc,
-    int binc
+    int binc,
+    int movestogo
 );
-
 /* ============================================================
    CONVERSION MOVE -> UCI
    ============================================================ */
@@ -327,6 +327,7 @@ static void HandleGo(char *command)
     int binc = 0;
 
     int movetime = -1;
+    int movestogo = -1;
 
     char *token = strtok(command, " ");
 
@@ -384,6 +385,13 @@ static void HandleGo(char *command)
             if (token != NULL)
                 binc = atoi(token);
         }
+        else if (strcmp(token, "movestogo") == 0)
+        {
+            token = strtok(NULL, " ");
+
+            if (token != NULL)
+                movestogo = atoi(token);
+        }
 
         token = strtok(NULL, " ");
     }
@@ -415,12 +423,13 @@ static void HandleGo(char *command)
     else if (wtime >= 0 && btime >= 0)
     {
         timeSeconds =
-            CalculateThinkTime(
-                wtime,
-                btime,
-                winc,
-                binc
-            );
+    CalculateThinkTime(
+        wtime,
+        btime,
+        winc,
+        binc,
+        movestogo
+    );
     }
 
     /*
@@ -597,7 +606,8 @@ static double CalculateThinkTime(
     int wtime,
     int btime,
     int winc,
-    int binc)
+    int binc,
+    int movestogo)
 {
     int timeRemaining;
     int increment;
@@ -614,23 +624,49 @@ static double CalculateThinkTime(
     }
 
     /*
-     * On réserve une marge de sécurité.
+     * Nombre de coups restants avant le prochain contrôle
+     * de temps.
+     *
+     * Si la GUI ne fournit pas movestogo, on utilise
+     * une estimation conservatrice de 30 coups.
      */
+    int moves = movestogo;
 
-    double time =
-        timeRemaining / 30.0;
-
-    time += increment * 0.8 / 1000.0;
+    if (moves <= 0)
+        moves = 30;
 
     /*
-     * Ne jamais utiliser tout le temps.
+     * Temps de base :
+     *
+     * temps restant / nombre de coups restants
      */
+    double time = (double)timeRemaining / (double)moves / 1000.0;
 
-    double safety =
-        0.050;
+    /*
+     * On ajoute une partie de l'incrément.
+     */
+    time += (double)increment * 0.8 / 1000.0;
+
+    /*
+     * Marge de sécurité pour éviter de tomber à zéro.
+     */
+    double safety = 0.100;
 
     time -= safety;
 
+    /*
+     * Ne jamais utiliser plus de 25% du temps restant
+     * sur un seul coup.
+     */
+    double maxTime =
+        ((double)timeRemaining * 0.25) / 1000.0;
+
+    if (time > maxTime)
+        time = maxTime;
+
+    /*
+     * Temps minimum.
+     */
     if (time < 0.01)
         time = 0.01;
 

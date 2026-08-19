@@ -9,7 +9,7 @@
 static volatile int searchStopped = 0;
 
 static int g_timeLimited = 0;
-static clock_t g_deadline;
+static double g_deadline;
 static int g_timeUp;
 static long long g_nodeCount;
 static int g_lastRootScore; // score du dernier FindBestMove (pour IterativeDeepening)
@@ -28,22 +28,32 @@ static Move g_killerMoves[MAX_KILLER_DEPTH][2];
 static int g_hasKiller[MAX_KILLER_DEPTH][2];
 
 
+static double GetTimeSeconds(void)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return (double)ts.tv_sec +
+           (double)ts.tv_nsec / 1000000000.0;
+}
+
 static int TimeUp(void)
 {
-    if (searchStopped)
-    {
-        g_timeUp = 1;
-        return 1;
-    }
+    if (!g_timeLimited)
+        return 0;
 
-    if (!g_timeLimited) return 0;
-    if (g_timeUp) return 1;
+    if (g_timeUp)
+        return 1;
 
     g_nodeCount++;
 
-    if ((g_nodeCount % 2048) == 0 && clock() >= g_deadline)
+    if ((g_nodeCount % 2048) == 0)
     {
-        g_timeUp = 1;
+        if (GetTimeSeconds() >= g_deadline)
+        {
+            g_timeUp = 1;
+        }
     }
 
     return g_timeUp;
@@ -54,7 +64,8 @@ static void SetSearchDeadline(double seconds)
     g_timeLimited = 1;
     g_timeUp = 0;
     g_nodeCount = 0;
-    g_deadline = clock() + (clock_t)(seconds * CLOCKS_PER_SEC);
+
+    g_deadline = GetTimeSeconds() + seconds;
 }
 
 static void ClearSearchDeadline(void)

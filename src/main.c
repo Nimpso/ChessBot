@@ -315,12 +315,12 @@ int main(int argc, char *argv[])
     InitZobrist();
     TT_Init(64);
 
-    if (argc > 1 &&
-    strcmp(argv[1], "--uci") == 0)
-    {
+    //if (argc > 1 &&
+    //strcmp(argv[1], "--uci") == 0)
+    //{
         UCI_Loop();
         return 0;
-    }
+    //}
 
     printf("\n");
     printf("========================================\n");
@@ -353,7 +353,7 @@ int main(int argc, char *argv[])
         maxDepth
     );*/
 
-    TestPositionFromFEN(
+    /*TestPositionFromFEN(
         "3r2k1/p4ppp/8/Q2r1q2/4p3/8/PP3PPP/3R1RK1 w - - 0 21",
         "Probleme lichess 1",
         thinkTimeSeconds,
@@ -379,7 +379,7 @@ int main(int argc, char *argv[])
         "Probleme lichess 4",
         thinkTimeSeconds,
         maxDepth
-    );
+    );*/
 /*
 
     TestPositionFromFEN(
