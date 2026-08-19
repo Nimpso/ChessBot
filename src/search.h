@@ -30,10 +30,16 @@ typedef struct
     int depth;
 } SearchResult;
 
+// Appele apres chaque profondeur d'IterativeDeepening entierement
+// terminee (score toujours pdv blancs, comme le reste du moteur).
+// NULL si l'appelant n'a pas besoin de suivre la progression.
+typedef void (*SearchProgressCallback)(int depth, int score, Move move);
+
 SearchResult IterativeDeepening(
     Position *position,
     int maxDepth,
-    double timeLimitSeconds
+    double timeLimitSeconds,
+    SearchProgressCallback onProgress
 );
 
 void SearchStop(void);

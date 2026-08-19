@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "uci.h"
 #include "board.h"
@@ -11,6 +12,84 @@
 
 
 static Position position;
+
+
+#define QUEUE_CAPACITY 256
+#define LINE_MAX_LEN 4096
+
+typedef struct
+{
+    char lines[QUEUE_CAPACITY][LINE_MAX_LEN];
+    int head, tail, count;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+} CommandQueue;
+
+static CommandQueue g_queue;
+
+static void Queue_Init(CommandQueue *q)
+{
+    q->head = q->tail = q->count = 0;
+    pthread_mutex_init(&q->mutex, NULL);
+    pthread_cond_init(&q->cond, NULL);
+}
+
+static void Queue_Push(CommandQueue *q, const char *line)
+{
+    pthread_mutex_lock(&q->mutex);
+
+    if (q->count < QUEUE_CAPACITY)
+    {
+        strncpy(q->lines[q->tail], line, LINE_MAX_LEN - 1);
+        q->lines[q->tail][LINE_MAX_LEN - 1] = '\0';
+        q->tail = (q->tail + 1) % QUEUE_CAPACITY;
+        q->count++;
+        pthread_cond_signal(&q->cond);
+    }
+
+    pthread_mutex_unlock(&q->mutex);
+}
+
+static void Queue_Pop(CommandQueue *q, char *outLine)
+{
+    pthread_mutex_lock(&q->mutex);
+
+    while (q->count == 0)
+    {
+        pthread_cond_wait(&q->cond, &q->mutex);
+    }
+
+    strcpy(outLine, q->lines[q->head]);
+    q->head = (q->head + 1) % QUEUE_CAPACITY;
+    q->count--;
+
+    pthread_mutex_unlock(&q->mutex);
+}
+
+static void *StdinReaderThread(void *arg)
+{
+    (void)arg;
+    char line[LINE_MAX_LEN];
+
+    while (fgets(line, sizeof(line), stdin) != NULL)
+    {
+        line[strcspn(line, "\r\n")] = '\0';
+
+        if (strcmp(line, "stop") == 0 || strcmp(line, "quit") == 0)
+        {
+            SearchStop();
+        }
+
+        Queue_Push(&g_queue, line);
+
+        if (strcmp(line, "quit") == 0)
+        {
+            break;
+        }
+    }
+
+    return NULL;
+}
 
 static double CalculateThinkTime(
     int wtime,
@@ -221,6 +300,22 @@ static void HandlePosition(char *command)
    GO
    ============================================================ */
 
+/* ============================================================
+   PROGRESSION DE LA RECHERCHE (callback pour "info")
+   ============================================================ */
+
+static void OnSearchProgress(int depth, int score, Move move)
+{
+
+    int uciScore = (position.sideToMove == 0) ? score : -score;
+
+    printf("info depth %d score cp %d pv ", depth, uciScore);
+    PrintUCIMove(move);
+    printf("\n");
+    fflush(stdout);
+}
+
+
 static void HandleGo(char *command)
 {
     int depth = 30;
@@ -355,7 +450,8 @@ static void HandleGo(char *command)
         IterativeDeepening(
             &position,
             depth,
-            timeSeconds
+            timeSeconds,
+            OnSearchProgress
         );
 
 
@@ -381,14 +477,16 @@ static void HandleGo(char *command)
 
 void UCI_Loop(void)
 {
-    char command[4096];
+    Queue_Init(&g_queue);
 
-    while (fgets(command, sizeof(command), stdin))
+    pthread_t readerThread;
+    pthread_create(&readerThread, NULL, StdinReaderThread, NULL);
+
+    char command[LINE_MAX_LEN];
+
+    for (;;)
     {
-        /*
-         * Enlever '\n'
-         */
-        command[strcspn(command, "\r\n")] = '\0';
+        Queue_Pop(&g_queue, command);
 
 
         /*
@@ -491,6 +589,8 @@ void UCI_Loop(void)
             break;
         }
     }
+
+    pthread_join(readerThread, NULL);
 }
 
 static double CalculateThinkTime(

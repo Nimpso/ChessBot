@@ -30,6 +30,12 @@ static int g_hasKiller[MAX_KILLER_DEPTH][2];
 
 static int TimeUp(void)
 {
+    if (searchStopped)
+    {
+        g_timeUp = 1;
+        return 1;
+    }
+
     if (!g_timeLimited) return 0;
     if (g_timeUp) return 1;
 
@@ -705,7 +711,8 @@ Move FindBestMove(Position *position, int depth)
 SearchResult IterativeDeepening(
     Position *position,
     int maxDepth,
-    double timeLimitSeconds)
+    double timeLimitSeconds,
+    SearchProgressCallback onProgress)
 {
     /*
      * Nouvelle recherche :
@@ -820,6 +827,11 @@ SearchResult IterativeDeepening(
          */
         g_pvMove = candidate;
         g_hasPvMove = 1;
+
+        if (onProgress != NULL)
+        {
+            onProgress(depth, g_lastRootScore, candidate);
+        }
     }
 
 

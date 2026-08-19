@@ -96,7 +96,8 @@ void TestSelfPlayIterativeDeepening(
             IterativeDeepening(
                 &position,
                 maxDepth,
-                timePerMove
+                timePerMove,
+                NULL
             );
 
         Move best = result.move;
@@ -260,7 +261,8 @@ void TestPositionFromFEN(
         IterativeDeepening(
             &position,
             maxDepth,
-            thinkTimeSeconds
+            thinkTimeSeconds,
+            NULL
         );
 
     /*
