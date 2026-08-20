@@ -40,6 +40,12 @@ static double GetTimeSeconds(void)
 
 static int TimeUp(void)
 {
+    if (searchStopped)
+    {
+        g_timeUp = 1;
+        return 1;
+    }
+
     if (!g_timeLimited)
         return 0;
 

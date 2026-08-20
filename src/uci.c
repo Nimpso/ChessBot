@@ -134,7 +134,8 @@ static void PrintUCIMove(Move move)
 
 static int ParseUCIMove(
     const char *str,
-    Move *move)
+    Move *move,
+    int sideToMove)
 {
     if (str == NULL || strlen(str) < 4)
         return 0;
@@ -151,10 +152,11 @@ static int ParseUCIMove(
     {
         char p = str[4];
 
-        if (p >= 'a' && p <= 'z')
-            p -= 'a' - 'A';
 
-        move->promotion = p;
+        if (p >= 'A' && p <= 'Z')
+            p += 'a' - 'A'; // normaliser en minuscule d'abord
+
+        move->promotion = (sideToMove == 0) ? (char)(p - 'a' + 'A') : p;
     }
 
     return 1;
@@ -169,7 +171,7 @@ static int PlayUCIMove(const char *moveString)
 {
     Move move;
 
-    if (!ParseUCIMove(moveString, &move))
+    if (!ParseUCIMove(moveString, &move, position.sideToMove))
         return 0;
 
     MoveList legalMoves;
@@ -288,7 +290,19 @@ static void HandlePosition(char *command)
 
         while (token != NULL)
         {
-            PlayUCIMove(token);
+            if (!PlayUCIMove(token))
+            {
+                /*
+                 * Ne devrait plus arriver depuis le fix de la casse
+                 * de promotion, mais si ca arrive quand meme, il
+                 * vaut bien mieux le savoir (desync silencieuse =
+                 * coups illegaux plus tard) que de continuer comme
+                 * si de rien n'etait. stderr, jamais stdout : ca
+                 * casserait le protocole UCI.
+                 */
+                fprintf(stderr, "[UCI] coup non reconnu, ignore : %s\n", token);
+                fflush(stderr);
+            }
 
             token = strtok(NULL, " ");
         }
